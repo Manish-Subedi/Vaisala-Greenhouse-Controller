@@ -12,6 +12,7 @@
 #include "FreeRTOS.h"
 #include "semphr.h"
 #include "Fmutex.h"
+#include "task.h"
 
 struct LpcPinMap {
 	int port; /* set to -1 to indicate unused pin */

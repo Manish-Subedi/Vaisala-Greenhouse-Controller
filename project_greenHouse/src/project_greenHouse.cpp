@@ -20,6 +20,14 @@
 #include "FreeRTOS.h"
 #include "heap_lock_monitor.h"
 #include "task.h"
+#include "DigitalIoPin.h"
+#include "ITM_write.h"
+#include "Fmutex.h"
+#include "LpcUart.h"
+#include <cstring>
+#include "modbusConfig.h"
+
+
 
 #if 1
 
@@ -45,6 +53,7 @@ static int filter_len = 50; // 50ms by default
 Fmutex sysMutex;
 QueueHandle_t hq;
 //SemaphoreHandle_t xSem;
+modbusConfig modbus;
 
 /* Interrupt handlers must be wrapped with extern "C" */
 #if 1
@@ -59,8 +68,7 @@ void PIN_INT0_IRQHandler(void)
 	portBASE_TYPE xHigherPriorityTaskWoken = pdTRUE;
 	Chip_PININT_ClearIntStatus(LPC_GPIO_PIN_INT, PININTCH(0));
 	/* create an event and send to the queue upon an interrupt */
-	BtnEvent e { 1, xTaskGetTickCountFromISR() };
-	xQueueSendFromISR(hq, &e, &xHigherPriorityTaskWoken);
+
 	/* switch back to the previous context */
 	portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
 }
@@ -84,6 +92,7 @@ void PIN_INT2_IRQHandler(void){
 }
 }
 
+#endif
 /* @brief task reads from serial port and prints to serial and ITM */
 static void vTaskSerialPort(void *pvParams){
 	int len = 15;
@@ -153,6 +162,25 @@ static void vTaskPrint(void *pvParams){
 	}
 }
 
+static void vTaskMeasure(void *pvParams){
+
+	int temp = 0;
+	int rh = 0;
+	int co2  = 0;
+	char buff[20];
+
+	while(1)  {
+		temp = modbus.get_temp();
+		rh = modbus.get_rh();
+		co2 = modbus.get_co2();
+
+		sprintf(buff, "\n\rtemp: %d\n\rrh: %d\n\rco2: %d", temp, rh, co2);
+		ITM_write(buff);
+		vTaskDelay(500);
+	}
+}
+
+
 int main(void) {
 	prvHardwareSetup();
 	heap_monitor_setup();
@@ -183,12 +211,9 @@ int main(void) {
 	/* create a queue of max 10 events */
 	hq = xQueueCreate(10, sizeof(BtnEvent));
 
-	xTaskCreate(vTaskPrint, "print",
-			((configMINIMAL_STACK_SIZE)+512), NULL, tskIDLE_PRIORITY + 1UL,
-			(TaskHandle_t *) NULL);
 
-	xTaskCreate(vTaskSerialPort, "get filter length",
-			((configMINIMAL_STACK_SIZE)+512), dbgu, tskIDLE_PRIORITY + 1UL,
+	xTaskCreate(vTaskMeasure, "Measuring",
+			((configMINIMAL_STACK_SIZE)+128), NULL, tskIDLE_PRIORITY + 3UL,
 						(TaskHandle_t *) NULL);
 
 	vTaskStartScheduler();

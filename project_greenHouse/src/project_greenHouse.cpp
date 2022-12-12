@@ -22,6 +22,12 @@
 #include "FreeRTOS.h"
 #include "heap_lock_monitor.h"
 #include "task.h"
+#include "queue.h"
+#include "DigitalIoPin.h"
+#include "ITM_write.h"
+#include "Fmutex.h"
+#include "LpcUart.h"
+
 
 #if 1
 

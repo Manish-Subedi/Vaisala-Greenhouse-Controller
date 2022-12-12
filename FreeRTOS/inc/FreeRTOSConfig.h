@@ -72,7 +72,8 @@
     
 #define configUSE_TIMERS                0
 #define configUSE_NEWLIB_REENTRANT      1
-
+/* enable task notification functionality */
+#define configUSE_TASK_NOTIFICATIONS        1
 #define configINCLUDE_FREERTOS_TASK_C_ADDITIONS_H 1
 #define configRECORD_STACK_HIGH_ADDRESS 1
 

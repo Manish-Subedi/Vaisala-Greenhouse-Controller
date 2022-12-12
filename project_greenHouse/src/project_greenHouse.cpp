@@ -17,17 +17,11 @@
 #endif
 
 #include <cr_section_macros.h>
+#include <cstring>
+
 #include "FreeRTOS.h"
 #include "heap_lock_monitor.h"
 #include "task.h"
-#include "DigitalIoPin.h"
-#include "ITM_write.h"
-#include "Fmutex.h"
-#include "LpcUart.h"
-#include <cstring>
-#include "modbusConfig.h"
-
-
 
 #if 1
 
@@ -41,6 +35,8 @@ static void prvHardwareSetup(void) {
 	ITM_init();
 	ITM_write("ITM ok!\n");
 }
+
+
 
 struct BtnEvent {
 	int pin;
@@ -56,9 +52,9 @@ QueueHandle_t hq;
 modbusConfig modbus;
 
 /* Interrupt handlers must be wrapped with extern "C" */
-#if 1
+
 extern "C"{
-/* ISR for SW 1 */
+/* ISR for encode rotator A */
 void PIN_INT0_IRQHandler(void)
 {
 	Board_LED_Toggle(2);
@@ -72,7 +68,7 @@ void PIN_INT0_IRQHandler(void)
 	/* switch back to the previous context */
 	portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
 }
-
+/* ISR for encode rotator B */
 void PIN_INT1_IRQHandler(void){
 	portBASE_TYPE xHigherPriorityTaskWoken = pdTRUE;
 	Chip_PININT_ClearIntStatus(LPC_GPIO_PIN_INT, PININTCH(1));
@@ -90,6 +86,14 @@ void PIN_INT2_IRQHandler(void){
 	xQueueSendFromISR(hq, &e, &xHigherPriorityTaskWoken);
 	portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
 }
+
+/* enable runtime statistics */
+void vConfigureTimerForRunTimeStats( void ) {
+	Chip_SCT_Init(LPC_SCTSMALL1);
+	LPC_SCTSMALL1->CONFIG = SCT_CONFIG_32BIT_COUNTER;
+	LPC_SCTSMALL1->CTRL_U = SCT_CTRL_PRE_L(255) | SCT_CTRL_CLRCTR_L; // set prescaler to 256 (255 + 1), and start timer
+}
+/* end runtime statictics collection */
 }
 
 #endif

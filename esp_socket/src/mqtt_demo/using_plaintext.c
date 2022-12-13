@@ -41,12 +41,12 @@
 //#include "sockets_wrapper.h"
 
 /* Transport interface include. */
-#include "using_plaintext.h"
+#include "../../../project_greenHouse/src/mqtt_demo/using_plaintext.h"
 
 // Keijo's definitions
 #define FREERTOS_INVALID_SOCKET -1
 #include "esp8266_socket.h"
-#include "demo_config.h"
+#include "../../../project_greenHouse/src/mqtt_demo/demo_config.h"
 #include <stdlib.h>
 uint32_t uxRand() {
 	return rand();

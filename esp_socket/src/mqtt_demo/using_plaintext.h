@@ -38,7 +38,7 @@
  */
 
 /* Include header that defines log levels. */
-#include "logging_levels.h"
+#include "../../../project_greenHouse/src/mqtt_demo/logging_levels.h"
 
 /* Logging configuration for the Sockets. */
 #ifndef LIBRARY_LOG_NAME
@@ -63,7 +63,7 @@ extern void vLoggingPrintf( const char * pcFormatString,
 #endif
 #endif
 
-#include "logging_stack.h"
+#include "../../../project_greenHouse/src/mqtt_demo/logging_stack.h"
 
 /************ End of logging configuration ****************/
 
@@ -71,7 +71,7 @@ extern void vLoggingPrintf( const char * pcFormatString,
 //#include "FreeRTOS_Sockets.h"
 
 /* Transport interface include. */
-#include "transport_interface.h"
+#include "../../../project_greenHouse/src/coreMQTT/source/interface/transport_interface.h"
 
 /**
  * @brief Parameters for the network context that uses FreeRTOS+TCP sockets.

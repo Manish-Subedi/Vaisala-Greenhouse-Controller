@@ -182,6 +182,7 @@ static void vTaskMeasure(void *pvParams){
 
 
 int main(void) {
+
 	prvHardwareSetup();
 	heap_monitor_setup();
 
@@ -211,7 +212,7 @@ int main(void) {
 	/* create a queue of max 10 events */
 	hq = xQueueCreate(10, sizeof(BtnEvent));
 
-
+	vStartSimpleMQTTDemo();
 	xTaskCreate(vTaskMeasure, "Measuring",
 			((configMINIMAL_STACK_SIZE)+128), NULL, tskIDLE_PRIORITY + 3UL,
 						(TaskHandle_t *) NULL);

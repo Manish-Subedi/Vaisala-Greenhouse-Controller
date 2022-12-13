@@ -48,6 +48,11 @@ QueueHandle_t hq;
 SemaphoreHandle_t xSem;
 modbusConfig modbus;
 
+/* variables to read from MODBUS sensors */
+static int temp = 0;
+static int rh = 0;
+static int co2  = 0;
+
 struct BtnEvent {
 
 };
@@ -104,13 +109,14 @@ static void vTaskMQTT(void *pvParameters){
 /* task to wait on the queue event from ISR and print it */
 static void vTaskLCD(void *pvParams){
 
+	// 1. display values to LCD UI
+	for( ;; ){
+		// 2. take semaphore and update
+	}
 }
 
 static void vTaskMODBUS(void *pvParams){
 
-	int temp = 0;
-	int rh = 0;
-	int co2  = 0;
 	char buff[20];
 
 	while(1)  {
@@ -119,8 +125,11 @@ static void vTaskMODBUS(void *pvParams){
 		co2 = modbus.get_co2();
 
 		sprintf(buff, "\n\rtemp: %d\n\rrh: %d\n\rco2: %d", temp, rh, co2);
+		sysMutex.lock();
 		ITM_write(buff);
+		sysMutex.unlock();
 		//give semaphore to LCD task here
+
 		vTaskDelay(500); //this is not required if semaphore is used
 	}
 }
@@ -157,9 +166,12 @@ int main(void) {
 
 	/* task MQTT */
 
+
 	/* task LCD */
 
+
 	/* task co2 monitor */
+
 
 	/* task measurement modbus */
 	xTaskCreate(vTaskMODBUS, "Measuring",

@@ -31,7 +31,9 @@
 #include "modbusConfig.h"
 #include "LiquidCrystal.h"
 #include "IntegerEdit.h"
+#include "SimpleMenu.h"
 
+static SimpleMenu menu;
 #if 1
 
 static void prvHardwareSetup(void) {
@@ -120,15 +122,34 @@ DigitalIoPin *d7 = new DigitalIoPin(0, 0, DigitalIoPin::output);
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
 IntegerEdit *co2_= new IntegerEdit(&lcd, std::string("CO2"), 10000, 0, 1);
+IntegerEdit *co2_t= new IntegerEdit(&lcd, std::string("CO2 target"), 10000, 0, 1);
 IntegerEdit *rh_= new IntegerEdit(&lcd, std::string("RH"), 100, 0, 1);
 IntegerEdit *temp_= new IntegerEdit(&lcd, std::string("Temp"), 60, -40, 1);
 
+
 /* task to wait on the queue event from ISR and print it */
 static void vTaskLCD(void *pvParams){
-
+	menu.addItem(new MenuItem(co2_));
+	menu.addItem(new MenuItem(co2_t));
+	menu.addItem(new MenuItem(rh_));
+	menu.addItem(new MenuItem(temp_));
+	lcd.begin(16, 2);
+	//lcd.setCursor(0,0);
+	co2_->setValue(0);
+	co2_t->setValue(0);
+	rh_->setValue(0);
+	temp_->setValue(0);
 	// 1. display values to LCD UI
 	for( ;; ){
+
 		// 2. take semaphore and update
+		if(xSemaphoreTake(xSem, portMAX_DELAY) == pdTRUE){
+			co2_->setValue(0);
+			rh_->setValue(0);
+			temp_->setValue(0);
+			menu.event(MenuItem::show);
+		}
+
 	}
 
 }
@@ -189,7 +210,9 @@ int main(void) {
 
 
 	/* task LCD */
-
+	xTaskCreate(vTaskLCD, "LCD_Task",
+			((configMINIMAL_STACK_SIZE)+128), NULL, tskIDLE_PRIORITY + 1UL,
+						(TaskHandle_t *) NULL);
 
 	/* task co2 monitor */
 

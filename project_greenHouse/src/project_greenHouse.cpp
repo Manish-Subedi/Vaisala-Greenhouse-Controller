@@ -17,9 +17,17 @@
 #endif
 
 #include <cr_section_macros.h>
+#include <cstring>
+
 #include "FreeRTOS.h"
 #include "heap_lock_monitor.h"
 #include "task.h"
+
+#include "DigitalIoPin.h"
+#include "ITM_write.h"
+#include "Fmutex.h"
+#include "LpcUart.h"
+#include <cstring>
 
 #if 1
 
@@ -34,6 +42,8 @@ static void prvHardwareSetup(void) {
 	ITM_write("ITM ok!\n");
 }
 
+
+
 struct BtnEvent {
 	int pin;
 	uint64_t timestamp;
@@ -45,11 +55,12 @@ static int filter_len = 50; // 50ms by default
 Fmutex sysMutex;
 QueueHandle_t hq;
 //SemaphoreHandle_t xSem;
+modbusConfig modbus;
 
 /* Interrupt handlers must be wrapped with extern "C" */
-#if 1
+
 extern "C"{
-/* ISR for SW 1 */
+/* ISR for encode rotator A */
 void PIN_INT0_IRQHandler(void)
 {
 	Board_LED_Toggle(2);
@@ -59,12 +70,11 @@ void PIN_INT0_IRQHandler(void)
 	portBASE_TYPE xHigherPriorityTaskWoken = pdTRUE;
 	Chip_PININT_ClearIntStatus(LPC_GPIO_PIN_INT, PININTCH(0));
 	/* create an event and send to the queue upon an interrupt */
-	BtnEvent e { 1, xTaskGetTickCountFromISR() };
-	xQueueSendFromISR(hq, &e, &xHigherPriorityTaskWoken);
+
 	/* switch back to the previous context */
 	portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
 }
-
+/* ISR for encode rotator B */
 void PIN_INT1_IRQHandler(void){
 	portBASE_TYPE xHigherPriorityTaskWoken = pdTRUE;
 	Chip_PININT_ClearIntStatus(LPC_GPIO_PIN_INT, PININTCH(1));
@@ -82,8 +92,17 @@ void PIN_INT2_IRQHandler(void){
 	xQueueSendFromISR(hq, &e, &xHigherPriorityTaskWoken);
 	portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
 }
+
+/* enable runtime statistics */
+void vConfigureTimerForRunTimeStats( void ) {
+	Chip_SCT_Init(LPC_SCTSMALL1);
+	LPC_SCTSMALL1->CONFIG = SCT_CONFIG_32BIT_COUNTER;
+	LPC_SCTSMALL1->CTRL_U = SCT_CTRL_PRE_L(255) | SCT_CTRL_CLRCTR_L; // set prescaler to 256 (255 + 1), and start timer
+}
+/* end runtime statictics collection */
 }
 
+#endif
 /* @brief task reads from serial port and prints to serial and ITM */
 static void vTaskSerialPort(void *pvParams){
 	int len = 15;
@@ -153,6 +172,25 @@ static void vTaskPrint(void *pvParams){
 	}
 }
 
+static void vTaskMeasure(void *pvParams){
+
+	int temp = 0;
+	int rh = 0;
+	int co2  = 0;
+	char buff[20];
+
+	while(1)  {
+		temp = modbus.get_temp();
+		rh = modbus.get_rh();
+		co2 = modbus.get_co2();
+
+		sprintf(buff, "\n\rtemp: %d\n\rrh: %d\n\rco2: %d", temp, rh, co2);
+		ITM_write(buff);
+		vTaskDelay(500);
+	}
+}
+
+
 int main(void) {
 	prvHardwareSetup();
 	heap_monitor_setup();
@@ -183,12 +221,9 @@ int main(void) {
 	/* create a queue of max 10 events */
 	hq = xQueueCreate(10, sizeof(BtnEvent));
 
-	xTaskCreate(vTaskPrint, "print",
-			((configMINIMAL_STACK_SIZE)+512), NULL, tskIDLE_PRIORITY + 1UL,
-			(TaskHandle_t *) NULL);
 
-	xTaskCreate(vTaskSerialPort, "get filter length",
-			((configMINIMAL_STACK_SIZE)+512), dbgu, tskIDLE_PRIORITY + 1UL,
+	xTaskCreate(vTaskMeasure, "Measuring",
+			((configMINIMAL_STACK_SIZE)+128), NULL, tskIDLE_PRIORITY + 3UL,
 						(TaskHandle_t *) NULL);
 
 	vTaskStartScheduler();

@@ -72,7 +72,8 @@
     
 #define configUSE_TIMERS                0
 #define configUSE_NEWLIB_REENTRANT      1
-
+/* enable task notification functionality */
+#define configUSE_TASK_NOTIFICATIONS        1
 #define configINCLUDE_FREERTOS_TASK_C_ADDITIONS_H 1
 #define configRECORD_STACK_HIGH_ADDRESS 1
 
@@ -96,7 +97,7 @@ to exclude the API function. */
  * - Extremely accurate timing using CPU core for short time statistics
  * - Slightly less accurate timing using LPC timers for collecting stats over extended time periods
  */
-#if 0
+#if 1
 /* This enables processor core cycle counter for runtime statistics
  * Internal cycle counter gives very accurate results but overflows in couple of minutes */
 #define portCONFIGURE_TIMER_FOR_RUN_TIME_STATS()    (CoreDebug->DEMCR |= 1 << 24, DWT->CTRL |= 1)

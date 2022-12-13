@@ -29,6 +29,8 @@
 #include "LpcUart.h"
 #include <cstring>
 #include "modbusConfig.h"
+#include "LiquidCrystal.h"
+#include "IntegerEdit.h"
 
 #if 1
 
@@ -57,6 +59,14 @@ Fmutex sysMutex;
 QueueHandle_t hq;
 //SemaphoreHandle_t xSem;
 modbusConfig modbus;
+
+/* variables to read from MODBUS sensors */
+struct SensorData {
+	int temp;
+	int rh;
+	int co2;
+	uint64_t time_stamp;
+};
 
 /* Interrupt handlers must be wrapped with extern "C" */
 
@@ -103,91 +113,56 @@ void vConfigureTimerForRunTimeStats( void ) {
 /* end runtime statictics collection */
 }
 
+
 #endif
-/* @brief task reads from serial port and prints to serial and ITM */
-static void vTaskSerialPort(void *pvParams){
-	int len = 15;
-	char str[25];
-	char buff[len];
-	int count = 0;
-	LpcUart *dbgu = static_cast<LpcUart *>(pvParams);
-	while(1){
-		int read = dbgu->read(buff + count, len - count);
-		if(read > 0){
-			count += read;
-			if(strchr(buff, '\r') != NULL || count >= len){
-				sysMutex.lock();
-				dbgu->write(buff, count);
-				dbgu->write('\n');
-				sysMutex.unlock();
-				/* get the filter value */
-#if 0			/* method 1 */
-				char *token;
-				token = strtok(buff, "   ");
-				int c = 0;
-				while(token != NULL){
-					if (c == 1) filter_len = atoi(token);
-					c++;
-					token = strtok(NULL, "   ");
-				}
-#endif			/* method 2 */
-				if(strncmp(buff, "filter ", 7) == 0){
-					if(sscanf(buff + 7, "%d", &filter_len) == 1){
-						snprintf(str, 25, "filter is set to %d\n", filter_len);
-						sysMutex.lock();
-						ITM_write(str);
-						sysMutex.unlock();
-					}
-				}
-				else ITM_write("Error: format is \"filter xxx\"\n\t\tif you wanted to set the filter value\n");
-				/* reset the buffers and variables */
-				memset(&buff, 0, strlen(buff));
-				memset(&str, 0, strlen(str));
-				count = 0;
-			}
-		}
-	}
+
+
+/* @brief task controls MQTT interface */
+static void vTaskMQTT(void *pvParameters){
+	//implementation
+
 }
+
+//LCD configuration
+DigitalIoPin *rs = new DigitalIoPin(0, 29, DigitalIoPin::output);
+DigitalIoPin *en = new DigitalIoPin(0, 9, DigitalIoPin::output);
+DigitalIoPin *d4 = new DigitalIoPin(0, 10, DigitalIoPin::output);
+DigitalIoPin *d5 = new DigitalIoPin(0, 16, DigitalIoPin::output);
+DigitalIoPin *d6 = new DigitalIoPin(1, 3, DigitalIoPin::output);
+DigitalIoPin *d7 = new DigitalIoPin(0, 0, DigitalIoPin::output);
+LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
+
+IntegerEdit *co2_= new IntegerEdit(&lcd, std::string("CO2"), 10000, 0, 1);
+IntegerEdit *rh_= new IntegerEdit(&lcd, std::string("RH"), 100, 0, 1);
+IntegerEdit *temp_= new IntegerEdit(&lcd, std::string("Temp"), 60, -40, 1);
 
 /* task to wait on the queue event from ISR and print it */
-static void vTaskPrint(void *pvParams){
-	char buffer[30];
-	uint64_t elapsed, prev_timestamp = 0;
-	BtnEvent e;
-	while(1){
-		if(xQueueReceive(hq, &e, portMAX_DELAY) == pdTRUE){
-			elapsed = e.timestamp - prev_timestamp;
 
-			if((static_cast<int>(elapsed)) >= filter_len){
-				if (elapsed >= 1000){
-					float elapsed_s = elapsed / 1000;
-					snprintf(buffer, 30, "%.1f s SW%d pressed\n", elapsed_s, e.pin);
-				}
-				else snprintf(buffer, 30, "%d ms SW%d pressed\n", static_cast<int>(elapsed), e.pin);
-				sysMutex.lock();
-				ITM_write(buffer);
-				sysMutex.unlock();
-			}
-		prev_timestamp = e.timestamp;
-		}
+static void vTaskLCD(void *pvParams){
+
+	// 1. display values to LCD UI
+	for( ;; ){
+		// 2. take semaphore and update
 	}
+
 }
 
-static void vTaskMeasure(void *pvParams){
+static void vTaskMODBUS(void *pvParams){
 
-	int temp = 0;
-	int rh = 0;
-	int co2  = 0;
 	char buff[20];
+	SensorData sensor_event;
 
 	while(1)  {
-		temp = modbus.get_temp();
-		rh = modbus.get_rh();
-		co2 = modbus.get_co2();
+		sensor_event.temp = modbus.get_temp();
+		sensor_event.rh = modbus.get_rh();
+		sensor_event.co2 = modbus.get_co2();
 
-		sprintf(buff, "\n\rtemp: %d\n\rrh: %d\n\rco2: %d", temp, rh, co2);
-		ITM_write(buff);
-		vTaskDelay(500);
+		sprintf(buff, "\n\rtemp: %d\n\rrh: %d\n\rco2: %d", sensor_event.temp, sensor_event.rh, sensor_event.co2);
+		sysMutex.lock();
+		sysMutex.unlock();
+		//give semaphore to LCD task here
+
+		vTaskDelay(500); //this is not required if semaphore is used
 	}
 }
 
@@ -196,6 +171,8 @@ int main(void) {
 
 	prvHardwareSetup();
 	heap_monitor_setup();
+
+
 
 	/* UART port config */
 	LpcPinMap none = {-1, -1}; // unused pin has negative values in it
@@ -221,9 +198,20 @@ int main(void) {
 	//xSem = xSemaphoreCreateCounting(5, 0);
 
 	/* create a queue of max 10 events */
-	hq = xQueueCreate(10, sizeof(BtnEvent));
 
-	xTaskCreate(vTaskMeasure, "Measuring",
+	hq = xQueueCreate(10, sizeof(int));
+
+	/* task MQTT */
+
+
+	/* task LCD */
+
+
+	/* task co2 monitor */
+
+
+	/* task measurement modbus */
+	xTaskCreate(vTaskMODBUS, "Measuring",
 			((configMINIMAL_STACK_SIZE)+128), NULL, tskIDLE_PRIORITY + 3UL,
 						(TaskHandle_t *) NULL);
 
@@ -232,4 +220,4 @@ int main(void) {
 	/* never arrive here */
     return 1 ;
 }
-#endif /* task 1 ends */
+

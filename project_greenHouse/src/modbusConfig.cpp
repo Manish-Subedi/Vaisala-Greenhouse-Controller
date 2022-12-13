@@ -6,7 +6,7 @@
  */
 
 #include "chip.h"
-
+#include "Fmutex.h"
 #include "modbusConfig.h"
 
 modbusConfig::modbusConfig():
@@ -23,15 +23,21 @@ modbusConfig::modbusConfig():
 
 
 int modbusConfig::get_temp(){
+	mutex.lock();
 	return temp_.read()/10;
+	mutex.unlock();
 }
 
 int modbusConfig::get_rh(){
+	mutex.lock();
     return rh_.read()/10;
+    mutex.unlock();
 }
 
 int modbusConfig::get_co2(){
-   return (co2_.read()/10)*100;
+	mutex.lock();
+	return (co2_.read()/10)*100;
+	mutex.unlock();
 }
 
 modbusConfig::~modbusConfig() {

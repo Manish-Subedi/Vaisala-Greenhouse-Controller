@@ -71,7 +71,7 @@ extern void vLoggingPrintf( const char * pcFormatString,
 //#include "FreeRTOS_Sockets.h"
 
 /* Transport interface include. */
-#include "transport_interface.h"
+#include "../coreMQTT/source/interface/transport_interface.h"
 
 /**
  * @brief Parameters for the network context that uses FreeRTOS+TCP sockets.

@@ -27,7 +27,7 @@
 #include <string.h>
 #include <assert.h>
 
-#include "core_mqtt_serializer.h"
+#include "./include/core_mqtt_serializer.h"
 
 /**
  * @brief MQTT protocol version 3.1.1.

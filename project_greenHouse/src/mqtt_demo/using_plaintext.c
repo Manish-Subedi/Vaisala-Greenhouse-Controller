@@ -45,7 +45,7 @@
 
 // Keijo's definitions
 #define FREERTOS_INVALID_SOCKET -1
-#include "esp8266_socket.h"
+#include "../networking/esp8266_socket.h"
 #include "demo_config.h"
 #include <stdlib.h>
 uint32_t uxRand() {

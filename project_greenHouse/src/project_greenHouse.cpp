@@ -22,20 +22,13 @@
 #include "FreeRTOS.h"
 #include "heap_lock_monitor.h"
 #include "task.h"
-<<<<<<< HEAD
 #include "queue.h"
-=======
-
->>>>>>> 20c5b8ba60eafb2367e6f2121d8154fb0b8a5755
 #include "DigitalIoPin.h"
 #include "ITM_write.h"
 #include "Fmutex.h"
 #include "LpcUart.h"
-<<<<<<< HEAD
-
-=======
 #include <cstring>
->>>>>>> 20c5b8ba60eafb2367e6f2121d8154fb0b8a5755
+#include "modbusConfig.h"
 
 #if 1
 
@@ -50,21 +43,14 @@ static void prvHardwareSetup(void) {
 	ITM_write("ITM ok!\n");
 }
 
-
-
-struct BtnEvent {
-	int pin;
-	uint64_t timestamp;
-};
-
-/* filter duration */
-static int filter_len = 50; // 50ms by default
-
 Fmutex sysMutex;
 QueueHandle_t hq;
-//SemaphoreHandle_t xSem;
+SemaphoreHandle_t xSem;
 modbusConfig modbus;
 
+struct BtnEvent {
+
+};
 /* Interrupt handlers must be wrapped with extern "C" */
 
 extern "C"{
@@ -75,13 +61,14 @@ void PIN_INT0_IRQHandler(void)
 	/* this must be set to true so that the context switch
 	 * gets back to the ongoing task
 	 * */
-	portBASE_TYPE xHigherPriorityTaskWoken = pdTRUE;
+	portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
 	Chip_PININT_ClearIntStatus(LPC_GPIO_PIN_INT, PININTCH(0));
 	/* create an event and send to the queue upon an interrupt */
 
 	/* switch back to the previous context */
 	portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
 }
+#if 0
 /* ISR for encode rotator B */
 void PIN_INT1_IRQHandler(void){
 	portBASE_TYPE xHigherPriorityTaskWoken = pdTRUE;
@@ -90,14 +77,12 @@ void PIN_INT1_IRQHandler(void){
 	xQueueSendFromISR(hq, &e, &xHigherPriorityTaskWoken);
 	portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
 }
-
+#endif
 /* ISR for button 3 */
 void PIN_INT2_IRQHandler(void){
 	Board_LED_Toggle(2);
 	portBASE_TYPE xHigherPriorityTaskWoken = pdTRUE;
 	Chip_PININT_ClearIntStatus(LPC_GPIO_PIN_INT, PININTCH(2));
-	BtnEvent e { 3, xTaskGetTickCountFromISR() };
-	xQueueSendFromISR(hq, &e, &xHigherPriorityTaskWoken);
 	portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
 }
 
@@ -110,77 +95,18 @@ void vConfigureTimerForRunTimeStats( void ) {
 /* end runtime statictics collection */
 }
 
-#endif
-/* @brief task reads from serial port and prints to serial and ITM */
-static void vTaskSerialPort(void *pvParams){
-	int len = 15;
-	char str[25];
-	char buff[len];
-	int count = 0;
-	LpcUart *dbgu = static_cast<LpcUart *>(pvParams);
-	while(1){
-		int read = dbgu->read(buff + count, len - count);
-		if(read > 0){
-			count += read;
-			if(strchr(buff, '\r') != NULL || count >= len){
-				sysMutex.lock();
-				dbgu->write(buff, count);
-				dbgu->write('\n');
-				sysMutex.unlock();
-				/* get the filter value */
-#if 0			/* method 1 */
-				char *token;
-				token = strtok(buff, "   ");
-				int c = 0;
-				while(token != NULL){
-					if (c == 1) filter_len = atoi(token);
-					c++;
-					token = strtok(NULL, "   ");
-				}
-#endif			/* method 2 */
-				if(strncmp(buff, "filter ", 7) == 0){
-					if(sscanf(buff + 7, "%d", &filter_len) == 1){
-						snprintf(str, 25, "filter is set to %d\n", filter_len);
-						sysMutex.lock();
-						ITM_write(str);
-						sysMutex.unlock();
-					}
-				}
-				else ITM_write("Error: format is \"filter xxx\"\n\t\tif you wanted to set the filter value\n");
-				/* reset the buffers and variables */
-				memset(&buff, 0, strlen(buff));
-				memset(&str, 0, strlen(str));
-				count = 0;
-			}
-		}
-	}
+
+/* @brief task controls MQTT interface */
+static void vTaskMQTT(void *pvParameters){
+	//implementation
 }
 
 /* task to wait on the queue event from ISR and print it */
-static void vTaskPrint(void *pvParams){
-	char buffer[30];
-	uint64_t elapsed, prev_timestamp = 0;
-	BtnEvent e;
-	while(1){
-		if(xQueueReceive(hq, &e, portMAX_DELAY) == pdTRUE){
-			elapsed = e.timestamp - prev_timestamp;
+static void vTaskLCD(void *pvParams){
 
-			if((static_cast<int>(elapsed)) >= filter_len){
-				if (elapsed >= 1000){
-					float elapsed_s = elapsed / 1000;
-					snprintf(buffer, 30, "%.1f s SW%d pressed\n", elapsed_s, e.pin);
-				}
-				else snprintf(buffer, 30, "%d ms SW%d pressed\n", static_cast<int>(elapsed), e.pin);
-				sysMutex.lock();
-				ITM_write(buffer);
-				sysMutex.unlock();
-			}
-		prev_timestamp = e.timestamp;
-		}
-	}
 }
 
-static void vTaskMeasure(void *pvParams){
+static void vTaskMODBUS(void *pvParams){
 
 	int temp = 0;
 	int rh = 0;
@@ -194,7 +120,8 @@ static void vTaskMeasure(void *pvParams){
 
 		sprintf(buff, "\n\rtemp: %d\n\rrh: %d\n\rco2: %d", temp, rh, co2);
 		ITM_write(buff);
-		vTaskDelay(500);
+		//give semaphore to LCD task here
+		vTaskDelay(500); //this is not required if semaphore is used
 	}
 }
 
@@ -220,17 +147,22 @@ int main(void) {
 
 	/* configure interrupts for those buttons */
 	encoder_A.enable_interrupt(0, 0, 0, 5);
-	encoder_B.enable_interrupt(1, 0, 0, 11);
 	encoder_Button.enable_interrupt(2, 0, 1, 9);
 
 	/* create a counting sempahore of max 5 events */
-	//xSem = xSemaphoreCreateCounting(5, 0);
+	xSem = xSemaphoreCreateCounting(10, 0);
 
 	/* create a queue of max 10 events */
-	hq = xQueueCreate(10, sizeof(BtnEvent));
+	hq = xQueueCreate(10, sizeof(int));
 
+	/* task MQTT */
 
-	xTaskCreate(vTaskMeasure, "Measuring",
+	/* task LCD */
+
+	/* task co2 monitor */
+
+	/* task measurement modbus */
+	xTaskCreate(vTaskMODBUS, "Measuring",
 			((configMINIMAL_STACK_SIZE)+128), NULL, tskIDLE_PRIORITY + 3UL,
 						(TaskHandle_t *) NULL);
 

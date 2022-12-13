@@ -50,6 +50,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/esp_socket/src/networking}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/esp_socket/src/uart}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/esp_socket/src/modbus}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:M:\co2_controller_project\project_greenHouse\src\mqtt_demo}&quot;"/>
 								</option>
 								<option id="com.crt.advproject.cpp.misc.dialect.1050480953" name="Language standard" superClass="com.crt.advproject.cpp.misc.dialect" useByScannerDiscovery="true" value="com.crt.advproject.misc.dialect.cpp11" valueType="enumerated"/>
 								<inputType id="com.crt.advproject.compiler.cpp.input.1120256394" superClass="com.crt.advproject.compiler.cpp.input"/>
@@ -83,6 +84,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/esp_socket/src/networking}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/esp_socket/src/uart}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/esp_socket/src/modbus}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:M:\co2_controller_project\project_greenHouse\src\mqtt_demo}&quot;"/>
 								</option>
 								<option id="com.crt.advproject.c.misc.dialect.531906788" name="Language standard" superClass="com.crt.advproject.c.misc.dialect" useByScannerDiscovery="true" value="com.crt.advproject.misc.dialect.c11" valueType="enumerated"/>
 								<inputType id="com.crt.advproject.compiler.input.1487894063" superClass="com.crt.advproject.compiler.input"/>
@@ -102,6 +104,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/esp_socket/src/networking}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/esp_socket/src/uart}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/esp_socket/src/modbus}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:M:\co2_controller_project\project_greenHouse\src\mqtt_demo}&quot;"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.assembler.input.1209412697" superClass="cdt.managedbuild.tool.gnu.assembler.input"/>
 								<inputType id="com.crt.advproject.assembler.input.1605116586" name="Additional Assembly Source Files" superClass="com.crt.advproject.assembler.input"/>
@@ -196,6 +199,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/FreeRTOS/inc}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/FreeRTOS/src/include}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/FreeRTOS/src/portable/GCC/ARM_CM3}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:M:\co2_controller_project\project_greenHouse\src\mqtt_demo}&quot;"/>
 								</option>
 								<option id="com.crt.advproject.cpp.misc.dialect.2048645127" name="Language standard" superClass="com.crt.advproject.cpp.misc.dialect" useByScannerDiscovery="true" value="com.crt.advproject.misc.dialect.cpp11" valueType="enumerated"/>
 								<inputType id="com.crt.advproject.compiler.cpp.input.290167567" superClass="com.crt.advproject.compiler.cpp.input"/>
@@ -222,6 +226,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/FreeRTOS/inc}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/FreeRTOS/src/include}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/FreeRTOS/src/portable/GCC/ARM_CM3}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:M:\co2_controller_project\project_greenHouse\src\mqtt_demo}&quot;"/>
 								</option>
 								<option id="com.crt.advproject.c.misc.dialect.2010067088" name="Language standard" superClass="com.crt.advproject.c.misc.dialect" useByScannerDiscovery="true" value="com.crt.advproject.misc.dialect.c11" valueType="enumerated"/>
 								<inputType id="com.crt.advproject.compiler.input.914156228" superClass="com.crt.advproject.compiler.input"/>
@@ -238,6 +243,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/FreeRTOS/inc}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/FreeRTOS/src/include}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/FreeRTOS/src/portable/GCC/ARM_CM3}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:M:\co2_controller_project\project_greenHouse\src\mqtt_demo}&quot;"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.assembler.input.190428474" superClass="cdt.managedbuild.tool.gnu.assembler.input"/>
 								<inputType id="com.crt.advproject.assembler.input.808322981" name="Additional Assembly Source Files" superClass="com.crt.advproject.assembler.input"/>
@@ -335,5 +341,23 @@
 	</storageModule>
 	<storageModule moduleId="scannerConfiguration">
 		<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+		<scannerConfigBuildInfo instanceId="com.crt.advproject.config.exe.debug.889705186;com.crt.advproject.config.exe.debug.889705186.;com.crt.advproject.cpp.exe.debug.1692606713;com.crt.advproject.compiler.cpp.input.1120256394">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId="com.crt.advproject.GCCManagedMakePerProjectProfileCPP"/>
+		</scannerConfigBuildInfo>
+		<scannerConfigBuildInfo instanceId="com.crt.advproject.config.exe.debug.889705186;com.crt.advproject.config.exe.debug.889705186.;com.crt.advproject.gcc.exe.debug.1913782450;com.crt.advproject.compiler.input.1487894063">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId="com.crt.advproject.GCCManagedMakePerProjectProfile"/>
+		</scannerConfigBuildInfo>
+		<scannerConfigBuildInfo instanceId="com.crt.advproject.config.exe.debug.889705186;com.crt.advproject.config.exe.debug.889705186.;com.crt.advproject.gas.exe.debug.1632167028;com.crt.advproject.assembler.input.1605116586">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId="com.crt.advproject.GCCManagedMakePerProjectProfile"/>
+		</scannerConfigBuildInfo>
+		<scannerConfigBuildInfo instanceId="com.crt.advproject.config.exe.release.97394327;com.crt.advproject.config.exe.release.97394327.;com.crt.advproject.cpp.exe.release.536356755;com.crt.advproject.compiler.cpp.input.290167567">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId="com.crt.advproject.GCCManagedMakePerProjectProfileCPP"/>
+		</scannerConfigBuildInfo>
+		<scannerConfigBuildInfo instanceId="com.crt.advproject.config.exe.release.97394327;com.crt.advproject.config.exe.release.97394327.;com.crt.advproject.gcc.exe.release.824306697;com.crt.advproject.compiler.input.914156228">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId="com.crt.advproject.GCCManagedMakePerProjectProfile"/>
+		</scannerConfigBuildInfo>
+		<scannerConfigBuildInfo instanceId="com.crt.advproject.config.exe.release.97394327;com.crt.advproject.config.exe.release.97394327.;com.crt.advproject.gas.exe.release.404463106;com.crt.advproject.assembler.input.808322981">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId="com.crt.advproject.GCCManagedMakePerProjectProfile"/>
+		</scannerConfigBuildInfo>
 	</storageModule>
 </cproject>

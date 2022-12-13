@@ -32,9 +32,11 @@
 #include "LiquidCrystal.h"
 #include "IntegerEdit.h"
 #include "SimpleMenu.h"
+#include "./mqtt_demo/MQTT_custom.h"
 
 SimpleMenu menu;
 IntegerEdit *co2_t;
+
 #if 1
 
 static void prvHardwareSetup(void) {
@@ -50,8 +52,10 @@ static void prvHardwareSetup(void) {
 }
 
 Fmutex sysMutex;
-QueueHandle_t hq;
+QueueHandle_t hq; //sensor data
+QueueHandle_t mq; // mqtt data
 SemaphoreHandle_t xSem;
+
 modbusConfig modbus;
 DigitalIoPin encoder_A(0, 5, DigitalIoPin::pullup, true);
 DigitalIoPin encoder_B(0, 6, DigitalIoPin::pullup, true);
@@ -121,20 +125,117 @@ void vConfigureTimerForRunTimeStats( void ) {
 }
 /* end runtime statictics collection */
 
-void vStartSimpleMQTTDemo(void);
+/* function declarations for MQTT */
+uint32_t prvGetTimeMs(void);
+PlaintextTransportStatus_t prvConnectToServerWithBackoffRetries( NetworkContext_t * pxNetworkContext );
+void prvCreateMQTTConnectionWithBroker( MQTTContext_t * pxMQTTContext,
+                                               NetworkContext_t * pxNetworkContext );
+void prvMQTTSubscribeWithBackoffRetries( MQTTContext_t * pxMQTTContext );
+void prvMQTTPublishToTopic( char *, MQTTContext_t * pxMQTTContext );
+MQTTStatus_t MQTT_ProcessLoop( MQTTContext_t * pContext,
+                               uint32_t timeoutMs );
+
 }
 
+uint8_t ucSharedBuffer[ mqttexampleSHARED_BUFFER_SIZE ];
+uint32_t ulGlobalEntryTimeMs;
+uint16_t usSubscribePacketIdentifier;
+uint16_t usUnsubscribePacketIdentifier;
 
 /* @brief task controls MQTT interface */
-static void vTaskMQTT(void *pvParameters){
-	//implementation
+static void prvMQTTTask( void * pvParameters )
+{
+    uint32_t ulPublishCount = 0U, ulTopicCount = 0U;
+    const uint32_t ulMaxPublishCount = 5UL;
+    NetworkContext_t xNetworkContext = { 0 };
+    PlaintextTransportParams_t xPlaintextTransportParams = { 0 };
+    MQTTContext_t xMQTTContext;
+    MQTTStatus_t xMQTTStatus;
+    PlaintextTransportStatus_t xNetworkStatus;
 
+    /* Remove compiler warnings about unused parameters. */
+    ( void ) pvParameters;
+
+    /* Set the pParams member of the network context with desired transport. */
+    xNetworkContext.pParams = &xPlaintextTransportParams;
+
+    ulGlobalEntryTimeMs = prvGetTimeMs();
+    char buff[40];
+    SensorData recv;
+    for( ; ; )
+    {
+        /****************************** Connect. ******************************/
+
+        /* Attempt to connect to the MQTT broker. If connection fails, retry after
+         * a timeout. The timeout value will exponentially increase until the
+         * maximum number of attempts are reached or the maximum timeout value is
+         * reached. The function below returns a failure status if the TCP connection
+         * cannot be established to the broker after the configured number of attempts. */
+        xNetworkStatus = prvConnectToServerWithBackoffRetries( &xNetworkContext );
+        configASSERT( xNetworkStatus == PLAINTEXT_TRANSPORT_SUCCESS );
+
+        /* Sends an MQTT Connect packet over the already connected TCP socket,
+         * and waits for a connection acknowledgment (CONNACK) packet. */
+        LogInfo( ( "Creating an MQTT connection to %s.", democonfigMQTT_BROKER_ENDPOINT ) );
+        prvCreateMQTTConnectionWithBroker( &xMQTTContext, &xNetworkContext );
+
+        /**************************** Subscribe. ******************************/
+
+        /* If server rejected the subscription request, attempt to resubscribe to
+         * the topic. Attempts are made according to the exponential backoff retry
+         * strategy declared in backoff_algorithm.h. */
+        //prvMQTTSubscribeWithBackoffRetries( &xMQTTContext );
+
+        /******************* Publish and Keep Alive Loop. *********************/
+
+        /* Publish messages with QoS0, then send and process Keep Alive messages. */
+        for( ;; ){
+        	xQueueReceive(mq, &recv, portMAX_DELAY);
+        	sprintf(buff, "field1=%d&field2=%d&field3=%d&field4=%ld", recv.co2, recv.rh, recv.temp, xTaskGetTickCount());
+        	prvMQTTPublishToTopic( buff, &xMQTTContext );
+        	vTaskDelay(500);
+        }
+#if 0
+        /******************** Unsubscribe from the topic. *********************/
+        LogInfo( ( "Unsubscribe from the MQTT topic %s.", mqttexampleTOPIC ) );
+        prvMQTTUnsubscribeFromTopic( &xMQTTContext );
+
+        /* Process the incoming packet from the broker. */
+        xMQTTStatus = MQTT_ProcessLoop( &xMQTTContext,
+                                        mqttexamplePROCESS_LOOP_TIMEOUT_MS );
+        configASSERT( xMQTTStatus == MQTTSuccess );
+
+        /**************************** Disconnect. *****************************/
+
+        /* Send an MQTT Disconnect packet over the connected TCP socket.
+         * There is no corresponding response for a disconnect packet. After
+         * sending the disconnect, the client must close the network connection. */
+        LogInfo( ( "Disconnecting the MQTT connection with %s.",
+                   democonfigMQTT_BROKER_ENDPOINT ) );
+        xMQTTStatus = MQTT_Disconnect( &xMQTTContext );
+        configASSERT( xMQTTStatus == MQTTSuccess );
+
+        /* Close the network connection. */
+        xNetworkStatus = Plaintext_FreeRTOS_Disconnect( &xNetworkContext );
+        configASSERT( xNetworkStatus == PLAINTEXT_TRANSPORT_SUCCESS );
+
+        /* Reset SUBACK status for each topic filter after completion of
+         * subscription request cycle. */
+        for( ulTopicCount = 0; ulTopicCount < mqttexampleTOPIC_COUNT; ulTopicCount++ )
+        {
+            xTopicFilterContext[ ulTopicCount ].xSubAckStatus = MQTTSubAckFailure;
+        }
+
+        /* Wait for some time between two iterations to ensure that we do not
+         * bombard the MQTT broker. */
+        LogInfo( ( "prvMQTTDemoTask() completed an iteration successfully. " ) );
+                 //  "Total free heap is %u.", xPortGetFreeHeapSize() ) );
+        LogInfo( ( "Demo completed successfully." ) );
+        LogInfo( ( "Short delay before starting the next iteration.... \r\n" ) );
+        vTaskDelay( mqttexampleDELAY_BETWEEN_DEMO_ITERATIONS );
+#endif
+    }
 }
-
-
-
-
-
 
 /* task to wait on the queue event from ISR and print it */
 static void vTaskLCD(void *pvParams){
@@ -156,28 +257,29 @@ static void vTaskLCD(void *pvParams){
 	menu.addItem(new MenuItem(co2_t));
 	menu.addItem(new MenuItem(rh_));
 	menu.addItem(new MenuItem(temp_));
-
+  
 	co2_->setValue(0);
 	co2_t->setValue(0);
 	rh_->setValue(0);
 	temp_->setValue(0);
-	//lcd.begin(16, 2);
+
 	menu.event(MenuItem::show);
 	dataevent e;
+
 	// 1. display values to LCD UI
 	for( ;; ){
 
 		// 2. take semaphore and update
-		//if(xQueueReceive(hq, &e, portMAX_DELAY)){     // receive data sensors from queue
-			xQueueReceive(hq, &e, portMAX_DELAY);
-			temp_->setValue(e.t);
+		if(xQueueReceive(hq, &e, portMAX_DELAY)){     // receive data sensors from queue
+			
+      temp_->setValue(e.t);
 			rh_->setValue(e.r);
 			co2_->setValue(e.c);
 			menu.event(MenuItem::show);
-		//}
+
+		}
 		vTaskDelay(500);
 	}
-
 }
 
 static void vTaskMODBUS(void *pvParams){
@@ -194,10 +296,17 @@ static void vTaskMODBUS(void *pvParams){
         xQueueSendToBack(hq, &sensor_event, portMAX_DELAY);
 
 
-		vTaskDelay(500); //this is not required if semaphore is used
+      sprintf(buff, "\n\rtemp: %d\n\rrh: %d\n\rco2: %d", sensor_event.temp, sensor_event.rh, sensor_event.co2);
+      sysMutex.lock();
+      ITM_write(buff);
+      sysMutex.unlock();
+		  vTaskDelay(500);
+      xQueueSend(hq, &sensor_event, 0);
+      
+      //use a timeout here
+      xQueueSend(mq, &sensor_event, 0);
 	}
 }
-
 
 int main(void) {
  	prvHardwareSetup();
@@ -228,9 +337,14 @@ int main(void) {
 
 	/* create a queue of max 10 events */
 	hq = xQueueCreate(10, sizeof(int));
-
+	mq = xQueueCreate(10, sizeof(SensorData));
 	/* task MQTT */
-	vStartSimpleMQTTDemo();
+	xTaskCreate( prvMQTTTask,          /* Function that implements the task. */
+	                 "MQTT task",               /* Text name for the task - only used for debugging. */
+	                 ((configMINIMAL_STACK_SIZE)+128), /* Size of stack (in words, not bytes) to allocate for the task. */
+	                 NULL,                     /* Task parameter - not used in this case. */
+	                 tskIDLE_PRIORITY + 1UL,         /* Task priority, must be between 0 and configMAX_PRIORITIES - 1. */
+	                 NULL );                   /* Used to pass out a handle to the created task - not used in this case. */
 
 	/* task LCD */
 	xTaskCreate(vTaskLCD, "LCD_Task",

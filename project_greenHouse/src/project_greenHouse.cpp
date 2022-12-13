@@ -139,17 +139,17 @@ static void vTaskLCD(void *pvParams){
 	co2_t->setValue(0);
 	rh_->setValue(0);
 	temp_->setValue(0);
+	SensorData e;
 	// 1. display values to LCD UI
 	for( ;; ){
 
 		// 2. take semaphore and update
-		if(xSemaphoreTake(xSem, portMAX_DELAY) == pdTRUE){
-			co2_->setValue(0);
-			rh_->setValue(0);
-			temp_->setValue(0);
+		if(xQueueReceive(hq, &e, portMAX_DELAY)){     // receive data sensors from queue
+			co2_->setValue(e.co2);
+			rh_->setValue(e.rh);
+			temp_->setValue(e.temp);
 			menu.event(MenuItem::show);
 		}
-
 	}
 
 }

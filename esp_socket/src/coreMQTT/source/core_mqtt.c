@@ -24,10 +24,11 @@
  * @file core_mqtt.c
  * @brief Implements the user-facing functions in core_mqtt.h.
  */
+#include "core_mqtt.h"
+
 #include <string.h>
 #include <assert.h>
 
-#include "core_mqtt.h"
 #include "core_mqtt_state.h"
 
 /*-----------------------------------------------------------*/

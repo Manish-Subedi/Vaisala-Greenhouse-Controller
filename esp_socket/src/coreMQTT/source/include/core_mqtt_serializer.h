@@ -39,14 +39,14 @@
  * MQTT_DO_NOT_USE_CUSTOM_CONFIG macro should not be defined. */
 #ifndef MQTT_DO_NOT_USE_CUSTOM_CONFIG
     /* Include custom config file before other headers. */
-    #include "core_mqtt_config.h"
+    #include "../../../../../project_greenHouse/src/coreMQTT/source/include/core_mqtt_config.h"
 #endif
 
 /* Include config defaults header to get default values of configs not
  * defined in core_mqtt_config.h file. */
-#include "core_mqtt_config_defaults.h"
+#include "../../../../../project_greenHouse/src/coreMQTT/source/include/core_mqtt_config_defaults.h"
 
-#include "transport_interface.h"
+#include "../../../../../project_greenHouse/src/coreMQTT/source/interface/transport_interface.h"
 
 /* MQTT packet types. */
 

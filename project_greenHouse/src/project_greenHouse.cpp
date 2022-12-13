@@ -52,13 +52,13 @@ modbusConfig modbus;
 
 
 /* variables to read from MODBUS sensors */
-static int temp = 0;
-static int rh = 0;
-static int co2  = 0;
-
-struct BtnEvent {
-
+struct SensorData {
+	int temp;
+	int rh;
+	int co2;
+	uint64_t time_stamp;
 };
+
 /* Interrupt handlers must be wrapped with extern "C" */
 
 extern "C"{
@@ -107,6 +107,7 @@ void vConfigureTimerForRunTimeStats( void ) {
 /* @brief task controls MQTT interface */
 static void vTaskMQTT(void *pvParameters){
 	//implementation
+
 }
 
 //LCD configuration
@@ -135,13 +136,14 @@ static void vTaskLCD(void *pvParams){
 static void vTaskMODBUS(void *pvParams){
 
 	char buff[20];
+	SensorData sensor_event;
 
 	while(1)  {
-		temp = modbus.get_temp();
-		rh = modbus.get_rh();
-		co2 = modbus.get_co2();
+		sensor_event.temp = modbus.get_temp();
+		sensor_event.rh = modbus.get_rh();
+		sensor_event.co2 = modbus.get_co2();
 
-		sprintf(buff, "\n\rtemp: %d\n\rrh: %d\n\rco2: %d", temp, rh, co2);
+		sprintf(buff, "\n\rtemp: %d\n\rrh: %d\n\rco2: %d", sensor_event.temp, sensor_event.rh, sensor_event.co2);
 		sysMutex.lock();
 		ITM_write(buff);
 		sysMutex.unlock();

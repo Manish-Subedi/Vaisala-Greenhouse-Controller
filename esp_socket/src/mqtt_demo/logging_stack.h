@@ -29,12 +29,10 @@
 #define LOGGING_STACK_H_
 
 /* Include header for logging level macros. */
-#include "logging_levels.h"
-
-/* Standard Include. */
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#include "../../../project_greenHouse/src/mqtt_demo/logging_levels.h"
 
 /* The macro definition for LIBRARY_LOG_NAME is for Doxygen
  * documentation only. This macro is typically defined in only the

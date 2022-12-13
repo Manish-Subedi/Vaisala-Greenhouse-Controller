@@ -39,7 +39,7 @@
  * 3. Include the header file "logging_stack.h", if logging is enabled for DEMO.
  */
 
-#include "logging_levels.h"
+#include "../../../project_greenHouse/src/mqtt_demo/logging_levels.h"
 
 /* Logging configuration for the Demo. */
 #ifndef LIBRARY_LOG_NAME
@@ -63,7 +63,7 @@ extern void vLoggingPrintf( const char * pcFormatString,
     //#define SdkLog( message )    vLoggingPrintf message
 #endif
 
-#include "logging_stack.h"
+#include "../../../project_greenHouse/src/mqtt_demo/logging_stack.h"
 
 /************ End of logging configuration ****************/
 

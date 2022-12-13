@@ -55,16 +55,10 @@
 #include "task.h"
 
 /* Demo Specific configs. */
-#include "demo_config.h"
-
-/* MQTT library includes. */
-#include "core_mqtt.h"
-
-/* Exponential backoff retry include. */
-#include "backoff_algorithm.h"
-
-/* Transport interface include. */
-#include "using_plaintext.h"
+#include "../../../project_greenHouse/src/backoffAlgorithm/source/include/backoff_algorithm.h"
+#include "../../../project_greenHouse/src/coreMQTT/source/include/core_mqtt.h"
+#include "../../../project_greenHouse/src/mqtt_demo/demo_config.h"
+#include "../../../project_greenHouse/src/mqtt_demo/using_plaintext.h"
 
 
 

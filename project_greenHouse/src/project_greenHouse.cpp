@@ -120,6 +120,8 @@ void vConfigureTimerForRunTimeStats( void ) {
 	LPC_SCTSMALL1->CTRL_U = SCT_CTRL_PRE_L(255) | SCT_CTRL_CLRCTR_L; // set prescaler to 256 (255 + 1), and start timer
 }
 /* end runtime statictics collection */
+
+void vStartSimpleMQTTDemo(void);
 }
 
 
@@ -201,7 +203,6 @@ int main(void) {
  	prvHardwareSetup();
 	heap_monitor_setup();
 
-
 	/* UART port config */
 	LpcPinMap none = {-1, -1}; // unused pin has negative values in it
 	LpcPinMap txpin = { 0, 18 }; // transmit pin that goes to debugger's UART->USB converter
@@ -229,7 +230,7 @@ int main(void) {
 	hq = xQueueCreate(10, sizeof(int));
 
 	/* task MQTT */
-
+	vStartSimpleMQTTDemo();
 
 	/* task LCD */
 	xTaskCreate(vTaskLCD, "LCD_Task",

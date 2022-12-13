@@ -29,6 +29,8 @@
 #include "LpcUart.h"
 #include <cstring>
 #include "modbusConfig.h"
+#include "LiquidCrystal.h"
+#include "IntegerEdit.h"
 
 #if 1
 
@@ -47,6 +49,7 @@ Fmutex sysMutex;
 QueueHandle_t hq;
 SemaphoreHandle_t xSem;
 modbusConfig modbus;
+
 
 /* variables to read from MODBUS sensors */
 static int temp = 0;
@@ -106,6 +109,19 @@ static void vTaskMQTT(void *pvParameters){
 	//implementation
 }
 
+//LCD configuration
+DigitalIoPin *rs = new DigitalIoPin(0, 29, DigitalIoPin::output);
+DigitalIoPin *en = new DigitalIoPin(0, 9, DigitalIoPin::output);
+DigitalIoPin *d4 = new DigitalIoPin(0, 10, DigitalIoPin::output);
+DigitalIoPin *d5 = new DigitalIoPin(0, 16, DigitalIoPin::output);
+DigitalIoPin *d6 = new DigitalIoPin(1, 3, DigitalIoPin::output);
+DigitalIoPin *d7 = new DigitalIoPin(0, 0, DigitalIoPin::output);
+LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
+
+IntegerEdit *co2_= new IntegerEdit(&lcd, std::string("CO2"), 10000, 0, 1);
+IntegerEdit *rh_= new IntegerEdit(&lcd, std::string("RH"), 100, 0, 1);
+IntegerEdit *temp_= new IntegerEdit(&lcd, std::string("Temp"), 60, -40, 1);
+
 /* task to wait on the queue event from ISR and print it */
 static void vTaskLCD(void *pvParams){
 
@@ -113,6 +129,7 @@ static void vTaskLCD(void *pvParams){
 	for( ;; ){
 		// 2. take semaphore and update
 	}
+
 }
 
 static void vTaskMODBUS(void *pvParams){
@@ -138,6 +155,8 @@ static void vTaskMODBUS(void *pvParams){
 int main(void) {
 	prvHardwareSetup();
 	heap_monitor_setup();
+
+
 
 	/* UART port config */
 	LpcPinMap none = {-1, -1}; // unused pin has negative values in it

@@ -32,15 +32,17 @@
 #include "LiquidCrystal.h"
 #include "IntegerEdit.h"
 #include "SimpleMenu.h"
-
 #include "./mqtt_demo/MQTT_custom.h"
 
-static SimpleMenu menu;
+SimpleMenu menu;
+IntegerEdit *co2_t;
+
 #if 1
 
 static void prvHardwareSetup(void) {
 	SystemCoreClockUpdate();
 	Board_Init();
+	Chip_RIT_Init(LPC_RITIMER);
 	Board_LED_Set(0, false);
 	Board_LED_Set(2, true);
 	/* Initialize interrupt hardware */
@@ -55,7 +57,8 @@ QueueHandle_t mq; // mqtt data
 SemaphoreHandle_t xSem;
 
 modbusConfig modbus;
-char msg[40];
+DigitalIoPin encoder_A(0, 5, DigitalIoPin::pullup, true);
+DigitalIoPin encoder_B(0, 6, DigitalIoPin::pullup, true);
 
 /* variables to read from MODBUS sensors */
 struct SensorData {
@@ -63,6 +66,12 @@ struct SensorData {
 	int rh;
 	int co2;
 	uint64_t time_stamp;
+};
+struct dataevent {
+	int t;
+	int r;
+	int c;
+	uint64_t t_stamp;
 };
 
 /* Interrupt handlers must be wrapped with extern "C" */
@@ -72,13 +81,17 @@ extern "C"{
 void PIN_INT0_IRQHandler(void)
 {
 	Board_LED_Toggle(2);
-	/* this must be set to true so that the context switch
-	 * gets back to the ongoing task
-	 * */
 	portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
 	Chip_PININT_ClearIntStatus(LPC_GPIO_PIN_INT, PININTCH(0));
 	/* create an event and send to the queue upon an interrupt */
-
+    //int i = co2_t->getValue();
+    if(encoder_B.read()){
+    	//i--;
+    	menu.event(MenuItem::down);
+    }else{
+    	//i++;
+    	menu.event(MenuItem::up);
+    }
 	/* switch back to the previous context */
 	portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
 }
@@ -95,8 +108,12 @@ void PIN_INT1_IRQHandler(void){
 /* ISR for button 3 */
 void PIN_INT2_IRQHandler(void){
 	Board_LED_Toggle(2);
-	portBASE_TYPE xHigherPriorityTaskWoken = pdTRUE;
+	portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
 	Chip_PININT_ClearIntStatus(LPC_GPIO_PIN_INT, PININTCH(2));
+	ITM_write("button ok");
+	if(menu.getIndex()==1 ) menu.event(MenuItem::ok);
+	//menu.event(MenuItem::ok);
+	//menu.event(MenuItem::show);
 	portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
 }
 
@@ -220,52 +237,49 @@ static void prvMQTTTask( void * pvParameters )
     }
 }
 
-
-//LCD configuration
-DigitalIoPin *rs = new DigitalIoPin(0, 29, DigitalIoPin::output);
-DigitalIoPin *en = new DigitalIoPin(0, 9, DigitalIoPin::output);
-DigitalIoPin *d4 = new DigitalIoPin(0, 10, DigitalIoPin::output);
-DigitalIoPin *d5 = new DigitalIoPin(0, 16, DigitalIoPin::output);
-DigitalIoPin *d6 = new DigitalIoPin(1, 3, DigitalIoPin::output);
-DigitalIoPin *d7 = new DigitalIoPin(0, 0, DigitalIoPin::output);
-LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
-
-IntegerEdit *co2_= new IntegerEdit(&lcd, std::string("CO2"), 10000, 0, 1);
-IntegerEdit *co2_t= new IntegerEdit(&lcd, std::string("CO2 target"), 10000, 0, 1);
-IntegerEdit *rh_= new IntegerEdit(&lcd, std::string("RH"), 100, 0, 1);
-IntegerEdit *temp_= new IntegerEdit(&lcd, std::string("Temp"), 60, -40, 1);
-
-
 /* task to wait on the queue event from ISR and print it */
 static void vTaskLCD(void *pvParams){
+	//LCD configuration
+	DigitalIoPin *rs = new DigitalIoPin(0, 29, DigitalIoPin::output);
+	DigitalIoPin *en = new DigitalIoPin(0, 9, DigitalIoPin::output);
+	DigitalIoPin *d4 = new DigitalIoPin(0, 10, DigitalIoPin::output);
+	DigitalIoPin *d5 = new DigitalIoPin(0, 16, DigitalIoPin::output);
+	DigitalIoPin *d6 = new DigitalIoPin(1, 3, DigitalIoPin::output);
+	DigitalIoPin *d7 = new DigitalIoPin(0, 0, DigitalIoPin::output);
+	LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
+
+	IntegerEdit *co2_= new IntegerEdit(&lcd, std::string("CO2"), 10000, 0, 1);
+	co2_t= new IntegerEdit(&lcd, std::string("CO2 target"), 10000, 0, 1);
+	IntegerEdit *rh_= new IntegerEdit(&lcd, std::string("RH"), 100, 0, 1);
+	IntegerEdit *temp_= new IntegerEdit(&lcd, std::string("Temp"), 60, -40, 1);
+
 	menu.addItem(new MenuItem(co2_));
 	menu.addItem(new MenuItem(co2_t));
 	menu.addItem(new MenuItem(rh_));
 	menu.addItem(new MenuItem(temp_));
-
-	lcd.begin(16, 2);
-	//lcd.setCursor(0,0);
+  
 	co2_->setValue(0);
 	co2_t->setValue(0);
 	rh_->setValue(0);
 	temp_->setValue(0);
 
-	MenuItem::show;
+	menu.event(MenuItem::show);
+	dataevent e;
 
-	SensorData e;
 	// 1. display values to LCD UI
 	for( ;; ){
 
 		// 2. take semaphore and update
 		if(xQueueReceive(hq, &e, portMAX_DELAY)){     // receive data sensors from queue
-			co2_->setValue(e.co2);
-			rh_->setValue(e.rh);
-			temp_->setValue(e.temp);
+			
+      temp_->setValue(e.t);
+			rh_->setValue(e.r);
+			co2_->setValue(e.c);
 			menu.event(MenuItem::show);
 
 		}
+		vTaskDelay(500);
 	}
-
 }
 
 static void vTaskMODBUS(void *pvParams){
@@ -277,22 +291,25 @@ static void vTaskMODBUS(void *pvParams){
 		sensor_event.temp = modbus.get_temp();
 		sensor_event.rh = modbus.get_rh();
 		sensor_event.co2 = modbus.get_co2();
+        sensor_event.time_stamp= xTaskGetTickCount();
 
-		sprintf(buff, "\n\rtemp: %d\n\rrh: %d\n\rco2: %d", sensor_event.temp, sensor_event.rh, sensor_event.co2);
-		sysMutex.lock();
-		ITM_write(buff);
-		sysMutex.unlock();
-		//give semaphore to LCD task here
-		snprintf(msg, 40, "\n\rtemp: %d\n\rrh: %d\n\rco2: %d", sensor_event.temp, sensor_event.rh, sensor_event.co2);
+        xQueueSendToBack(hq, &sensor_event, portMAX_DELAY);
 
-		xQueueSend(hq, &sensor_event, 0);
-		vTaskDelay(500);
-		xQueueSend(mq, &sensor_event, 0);
+
+      sprintf(buff, "\n\rtemp: %d\n\rrh: %d\n\rco2: %d", sensor_event.temp, sensor_event.rh, sensor_event.co2);
+      sysMutex.lock();
+      ITM_write(buff);
+      sysMutex.unlock();
+		  vTaskDelay(500);
+      xQueueSend(hq, &sensor_event, 0);
+      
+      //use a timeout here
+      xQueueSend(mq, &sensor_event, 0);
 	}
 }
 
 int main(void) {
-	prvHardwareSetup();
+ 	prvHardwareSetup();
 	heap_monitor_setup();
 
 	/* UART port config */
@@ -304,15 +321,16 @@ int main(void) {
 	LpcUart *dbgu = new LpcUart(cfg);
 
 	/* Configure pins and ports for Rotary Encoder as input, pullup, and inverted */
-	DigitalIoPin encoder_A(0, 5, DigitalIoPin::pullup, true);
-	DigitalIoPin encoder_B(0, 6, DigitalIoPin::pullup, true);
+	//DigitalIoPin encoder_A(0, 5, DigitalIoPin::pullup, true);
+	//DigitalIoPin encoder_B(0, 6, DigitalIoPin::pullup, true);
 	DigitalIoPin encoder_Button(1, 8, DigitalIoPin::pullup, true);
 
 	DigitalIoPin solenoid_valve(0, 27, DigitalIoPin::pullup, true);
 
 	/* configure interrupts for those buttons */
+	//enable_interrupt(IRQ number, NVIC priority, port, pin)
 	encoder_A.enable_interrupt(0, 0, 0, 5);
-	encoder_Button.enable_interrupt(2, 0, 1, 9);
+	encoder_Button.enable_interrupt(2, 0, 1, 8);
 
 	/* create a counting sempahore of max 5 events */
 	xSem = xSemaphoreCreateCounting(10, 0);
@@ -322,15 +340,15 @@ int main(void) {
 	mq = xQueueCreate(10, sizeof(SensorData));
 	/* task MQTT */
 	xTaskCreate( prvMQTTTask,          /* Function that implements the task. */
-	                 "DemoTask",               /* Text name for the task - only used for debugging. */
-	                 democonfigDEMO_STACKSIZE, /* Size of stack (in words, not bytes) to allocate for the task. */
+	                 "MQTT task",               /* Text name for the task - only used for debugging. */
+	                 ((configMINIMAL_STACK_SIZE)+128), /* Size of stack (in words, not bytes) to allocate for the task. */
 	                 NULL,                     /* Task parameter - not used in this case. */
-	                 tskIDLE_PRIORITY,         /* Task priority, must be between 0 and configMAX_PRIORITIES - 1. */
+	                 tskIDLE_PRIORITY + 1UL,         /* Task priority, must be between 0 and configMAX_PRIORITIES - 1. */
 	                 NULL );                   /* Used to pass out a handle to the created task - not used in this case. */
 
 	/* task LCD */
 	xTaskCreate(vTaskLCD, "LCD_Task",
-			((configMINIMAL_STACK_SIZE)+128), NULL, tskIDLE_PRIORITY + 1UL,
+			((configMINIMAL_STACK_SIZE)+512), NULL, tskIDLE_PRIORITY + 1UL,
 						(TaskHandle_t *) NULL);
 
 	/* task co2 monitor */

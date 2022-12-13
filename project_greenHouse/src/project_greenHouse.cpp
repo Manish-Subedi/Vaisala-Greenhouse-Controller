@@ -31,7 +31,9 @@
 #include "modbusConfig.h"
 #include "LiquidCrystal.h"
 #include "IntegerEdit.h"
+#include "SimpleMenu.h"
 
+static SimpleMenu menu;
 #if 1
 
 static void prvHardwareSetup(void) {
@@ -111,6 +113,8 @@ void vConfigureTimerForRunTimeStats( void ) {
 	LPC_SCTSMALL1->CTRL_U = SCT_CTRL_PRE_L(255) | SCT_CTRL_CLRCTR_L; // set prescaler to 256 (255 + 1), and start timer
 }
 /* end runtime statictics collection */
+
+void vStartSimpleMQTTDemo(void);
 }
 
 
@@ -133,16 +137,35 @@ DigitalIoPin *d7 = new DigitalIoPin(0, 0, DigitalIoPin::output);
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
 IntegerEdit *co2_= new IntegerEdit(&lcd, std::string("CO2"), 10000, 0, 1);
+IntegerEdit *co2_t= new IntegerEdit(&lcd, std::string("CO2 target"), 10000, 0, 1);
 IntegerEdit *rh_= new IntegerEdit(&lcd, std::string("RH"), 100, 0, 1);
 IntegerEdit *temp_= new IntegerEdit(&lcd, std::string("Temp"), 60, -40, 1);
+
 
 /* task to wait on the queue event from ISR and print it */
 
 static void vTaskLCD(void *pvParams){
-
+	menu.addItem(new MenuItem(co2_));
+	menu.addItem(new MenuItem(co2_t));
+	menu.addItem(new MenuItem(rh_));
+	menu.addItem(new MenuItem(temp_));
+	lcd.begin(16, 2);
+	//lcd.setCursor(0,0);
+	co2_->setValue(0);
+	co2_t->setValue(0);
+	rh_->setValue(0);
+	temp_->setValue(0);
+	SensorData e;
 	// 1. display values to LCD UI
 	for( ;; ){
+
 		// 2. take semaphore and update
+		if(xQueueReceive(hq, &e, portMAX_DELAY)){     // receive data sensors from queue
+			co2_->setValue(e.co2);
+			rh_->setValue(e.rh);
+			temp_->setValue(e.temp);
+			menu.event(MenuItem::show);
+		}
 	}
 
 }
@@ -172,8 +195,6 @@ int main(void) {
 	prvHardwareSetup();
 	heap_monitor_setup();
 
-
-
 	/* UART port config */
 	LpcPinMap none = {-1, -1}; // unused pin has negative values in it
 	LpcPinMap txpin = { 0, 18 }; // transmit pin that goes to debugger's UART->USB converter
@@ -202,10 +223,12 @@ int main(void) {
 	hq = xQueueCreate(10, sizeof(int));
 
 	/* task MQTT */
-
+	vStartSimpleMQTTDemo();
 
 	/* task LCD */
-
+	xTaskCreate(vTaskLCD, "LCD_Task",
+			((configMINIMAL_STACK_SIZE)+128), NULL, tskIDLE_PRIORITY + 1UL,
+						(TaskHandle_t *) NULL);
 
 	/* task co2 monitor */
 

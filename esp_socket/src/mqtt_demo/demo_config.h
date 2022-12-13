@@ -43,7 +43,7 @@
 
 /* Logging configuration for the Demo. */
 #ifndef LIBRARY_LOG_NAME
-    #define LIBRARY_LOG_NAME    "MQTTDemo"
+    #define LIBRARY_LOG_NAME    "MQTT_Group2"
 #endif
 
 #ifndef LIBRARY_LOG_LEVEL
@@ -79,7 +79,7 @@ extern void vLoggingPrintf( const char * pcFormatString,
  *
  * #define democonfigCLIENT_IDENTIFIER				"insert here."
  */
-#define democonfigCLIENT_IDENTIFIER				"ESP-MQTT-01"
+#define democonfigCLIENT_IDENTIFIER				"Group2_hackathon"
 
 /**
  * @brief MQTT broker end point to connect to.
@@ -89,7 +89,7 @@ extern void vLoggingPrintf( const char * pcFormatString,
  *
  * #define democonfigMQTT_BROKER_ENDPOINT				"insert here."
  */
-#define democonfigMQTT_BROKER_ENDPOINT				"192.168.1.254"
+#define democonfigMQTT_BROKER_ENDPOINT				"152.70.178.116"
 
 /**
  * @brief The port to use for the demo.

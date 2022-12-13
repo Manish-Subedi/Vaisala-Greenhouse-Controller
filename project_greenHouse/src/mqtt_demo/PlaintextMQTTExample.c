@@ -143,7 +143,6 @@
  * @brief The MQTT message published in this example.
  */
 #define mqttexampleMESSAGE                           "Hello World!"
-
 /**
  * @brief Dimensions a file scope buffer currently used to send and receive MQTT data
  * from a socket.
@@ -721,7 +720,8 @@ static void prvMQTTPublishToTopic( MQTTContext_t * pxMQTTContext )
 {
     MQTTStatus_t xResult;
     MQTTPublishInfo_t xMQTTPublishInfo;
-    char msg[40] = mqttexampleMESSAGE;
+    //char msg[40] = mqttexampleMESSAGE;
+    char msg[40] = {"wow_manis"};
     int len = strlen(msg);
     sprintf(&msg[len], " %d", (int)xTaskGetTickCount());
     len = strlen(msg);

@@ -22,12 +22,20 @@
 #include "FreeRTOS.h"
 #include "heap_lock_monitor.h"
 #include "task.h"
+<<<<<<< HEAD
 #include "queue.h"
+=======
+
+>>>>>>> 20c5b8ba60eafb2367e6f2121d8154fb0b8a5755
 #include "DigitalIoPin.h"
 #include "ITM_write.h"
 #include "Fmutex.h"
 #include "LpcUart.h"
+<<<<<<< HEAD
 
+=======
+#include <cstring>
+>>>>>>> 20c5b8ba60eafb2367e6f2121d8154fb0b8a5755
 
 #if 1
 

@@ -28,6 +28,7 @@
 #include "Fmutex.h"
 #include "LpcUart.h"
 #include <cstring>
+#include "modbusConfig.h"
 
 #if 1
 

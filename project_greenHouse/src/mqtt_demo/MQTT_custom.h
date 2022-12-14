@@ -41,7 +41,7 @@
  * time. This client id can cause collision, if more than one instance of the same
  * binary is used at the same time to connect to the broker.
  */
-    #define democonfigCLIENT_IDENTIFIER    "testClient"__TIME__
+//#define democonfigCLIENT_IDENTIFIER    "testClient"__TIME__
 #endif
 
 #ifndef democonfigMQTT_BROKER_PORT
@@ -57,7 +57,7 @@
 /**
  * @brief The maximum number of retries for network operation with server.
  */
-#define mqttexampleRETRY_MAX_ATTEMPTS            ( 5U )
+#define mqttexampleRETRY_MAX_ATTEMPTS            ( 10U )
 
 /**
  * @brief The maximum back-off delay (in milliseconds) for retrying failed operation
@@ -84,8 +84,8 @@
  * interacts with a unique topic name.
  */
 //#define mqttexampleTOPIC                             democonfigCLIENT_IDENTIFIER "/example/topic"
-#define mqttexampleTOPIC                             democonfigCLIENT_IDENTIFIER
 
+#define mqttexampleTOPIC										"channels/1955513/publish"
 /**
  * @brief The number of topic filters to subscribe.
  */
@@ -94,7 +94,7 @@
 /**
  * @brief The MQTT message published in this example.
  */
-#define mqttexampleMESSAGE                           "Hello World!"
+//#define mqttexampleMESSAGE                           "Hello World!"
 /**
  * @brief Dimensions a file scope buffer currently used to send and receive MQTT data
  * from a socket.

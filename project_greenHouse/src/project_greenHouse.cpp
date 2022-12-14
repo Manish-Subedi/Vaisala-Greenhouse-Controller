@@ -67,7 +67,7 @@ QueueHandle_t mq; // mqtt data
 // Semaphore and timeout for sending data to MQTT in intervals
 SemaphoreHandle_t xSemaphoreMQTT;
 TimerHandle_t sendToMQTTTimer;
-const TickType_t MQTTInterval = pdMS_TO_TICKS(1000);	// 30 000 = 5 minutes
+const TickType_t MQTTInterval = pdMS_TO_TICKS(5000);	// 30 000 = 5 minutes
 
 // Semaphore and timeout for activating valve
 SemaphoreHandle_t xSemaphoreValve;
@@ -97,12 +97,12 @@ struct dataevent {
 };
 
 /* read co2 value set from the LCD UI */
-
+int solenoid_state = 0;
 int co2_new = 0;
 /* Interrupt handlers must be wrapped with extern "C" */
 
 extern "C"{
-/* ISR for encode rotator A */
+/* ISR for encode rotator SIGA */
 void PIN_INT0_IRQHandler(void)
 {
 	Board_LED_Toggle(2);
@@ -118,14 +118,6 @@ void PIN_INT0_IRQHandler(void)
     	menu.event(MenuItem::up);
     }
 	/* switch back to the previous context */
-	portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
-}
-/* ISR for encode rotator B */
-void PIN_INT1_IRQHandler(void){
-	portBASE_TYPE xHigherPriorityTaskWoken = pdTRUE;
-	Chip_PININT_ClearIntStatus(LPC_GPIO_PIN_INT, PININTCH(1));
-	BtnEvent e { 2, xTaskGetTickCountFromISR() };
-	xQueueSendFromISR(hq, &e, &xHigherPriorityTaskWoken);
 	portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
 }
 
@@ -166,8 +158,8 @@ uint16_t usUnsubscribePacketIdentifier;
 /* @brief task controls MQTT interface */
 static void prvMQTTTask( void * pvParameters )
 {
-    uint32_t ulPublishCount = 0U, ulTopicCount = 0U;
-    const uint32_t ulMaxPublishCount = 5UL;
+    //uint32_t ulPublishCount = 0U, ulTopicCount = 0U;
+    //const uint32_t ulMaxPublishCount = 5UL;
     NetworkContext_t xNetworkContext = { 0 };
     PlaintextTransportParams_t xPlaintextTransportParams = { 0 };
     MQTTContext_t xMQTTContext;
@@ -212,9 +204,8 @@ static void prvMQTTTask( void * pvParameters )
         /* Publish messages with QoS0, then send and process Keep Alive messages. */
         for( ;; ){
         	xQueueReceive(mq, &recv, portMAX_DELAY);
-        	sprintf(buff, "field1=%d&field2=%d&field3=%d&field4=%d&field5=%d", recv.co2, recv.rh, recv.temp, 0, co2_new);
+        	sprintf(buff, "field1=%d&field2=%d&field3=%d&field4=%d&field5=%d", recv.co2, recv.rh, recv.temp, solenoid_state, co2_new);
         	prvMQTTPublishToTopic( buff, &xMQTTContext );
-        	vTaskDelay(500);
         }
     }
 }
@@ -263,17 +254,19 @@ static void vTaskLCD(void *pvParams){
 		co2_new = co2_t->getValue();
 		int offset = 10;
 		char read[10];
-		sprintf(read, "%d\n", co2_new);
+		sprintf(read, "\nset_point co2 :%d\n", co2_new);
 		ITM_write(read);
 		/* control the valve */
 		if( xSemaphoreTake( xSemaphoreValve, ( TickType_t ) 0 ) ) {
 
 		if((co2_new+offset) < co2_->getValue()) {
 			solenoid_valve->write(false);
+			solenoid_state = 0;
 			ITM_write("\nvalve closed!\n");
 		}
 		else if((co2_new-offset) > co2_->getValue()) {
 			solenoid_valve->write(true);
+			solenoid_state = 1;
 			ITM_write("\nvalve open!\n");
 		}
 		}
@@ -291,17 +284,24 @@ static void vTaskMODBUS(void *pvParams){
 		sensor_event.temp = modbus.get_temp();
 		sensor_event.rh = modbus.get_rh();
 		sensor_event.co2 = modbus.get_co2();
-		sensor_event.time_stamp= xTaskGetTickCount();
 
-		sprintf(buff, "\n\rtemp: %d\n\rrh: %d\n\rco2: %d", sensor_event.temp, sensor_event.rh, sensor_event.co2);
-		sysMutex.lock();
-		ITM_write(buff);
-		sysMutex.unlock();
-		vTaskDelay(500);
-		xQueueSend(hq, &sensor_event, 0);
 
-        if( xSemaphoreTake( xSemaphoreMQTT, ( TickType_t ) 0 ) ) {
-        	xQueueSend(mq, &sensor_event, 0);
+        if( xSemaphoreTake( xSemaphoreMQTT, 0 ) == pdTRUE) {
+        	sprintf(buff, "\n\rtemp: %d\n\rrh: %d\n\rco2: %d", sensor_event.temp, sensor_event.rh, sensor_event.co2);
+			sysMutex.lock();
+			ITM_write(buff);
+			sysMutex.unlock();
+			vTaskDelay(500);
+			xQueueSend(hq, &sensor_event, 0); // LCD queue
+        	xQueueSend(mq, &sensor_event, 0); //mqtt queue
+        }
+        else {
+        	sprintf(buff, "\n\rtemp: %d\n\rrh: %d\n\rco2: %d", sensor_event.temp, sensor_event.rh, sensor_event.co2);
+			sysMutex.lock();
+			ITM_write(buff);
+			sysMutex.unlock();
+			vTaskDelay(500);
+			xQueueSend(hq, &sensor_event, 0); // LCD queue
         }
 	}
 }
@@ -364,14 +364,15 @@ int main(void) {
 	/* setting things up for allowing valve control */
 	xSemaphoreValve = xSemaphoreCreateBinary();
 	controlValveTimer = xTimerCreate("Valve control", valveInterval, pdTRUE, (void *)0, vValveTimerCallBack);
+	xTimerStart(controlValveTimer,0);
 
 	/* task MQTT */
-	xTaskCreate( prvMQTTTask,          /* Function that implements the task. */
-	                 "MQTT task",               /* Text name for the task - only used for debugging. */
-	                 ((configMINIMAL_STACK_SIZE)+512), /* Size of stack (in words, not bytes) to allocate for the task. */
-	                 NULL,                     /* Task parameter - not used in this case. */
-	                 tskIDLE_PRIORITY,         /* Task priority, must be between 0 and configMAX_PRIORITIES - 1. */
-	                 NULL );                   /* Used to pass out a handle to the created task - not used in this case. */
+	xTaskCreate( prvMQTTTask,
+	                 "MQTT task",
+	                 ((configMINIMAL_STACK_SIZE)+512),
+	                 NULL,
+	                 tskIDLE_PRIORITY,
+	                 NULL );
 
 	/* task LCD */
 	xTaskCreate(vTaskLCD, "LCD_Task",

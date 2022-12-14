@@ -79,7 +79,7 @@ extern void vLoggingPrintf( const char * pcFormatString,
  *
  * #define democonfigCLIENT_IDENTIFIER				"insert here."
  */
-#define democonfigCLIENT_IDENTIFIER				"Group2_hackathon"
+//#define democonfigCLIENT_IDENTIFIER				"channels/1955513/publish"
 
 /**
  * @brief MQTT broker end point to connect to.
@@ -89,8 +89,13 @@ extern void vLoggingPrintf( const char * pcFormatString,
  *
  * #define democonfigMQTT_BROKER_ENDPOINT				"insert here."
  */
-#define democonfigMQTT_BROKER_ENDPOINT				"152.70.178.116"
+#define democonfigMQTT_BROKER_ENDPOINT					"mqtt3.thingspeak.com"
+//#define democonfigMQTT_BROKER_ENDPOINT					"152.70.178.116"
 
+#define CHANNEL_ID "1955513"
+#define SECRET_MQTT_USERNAME "DCAmDzgFFhoKKy8kCBw3NQA"
+#define SECRET_MQTT_CLIENT_ID "DCAmDzgFFhoKKy8kCBw3NQA"
+#define SECRET_MQTT_PASSWORD "qKxqzEzD+xMf2LMg0SU24WYk"
 /**
  * @brief The port to use for the demo.
  *

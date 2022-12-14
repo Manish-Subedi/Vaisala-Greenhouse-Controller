@@ -19,10 +19,7 @@
 
 #define read_temp_r_ADD     0x0101
 #define read_rh_r_ADD       0x0100
-
-#define read_co2_r_ADD      0x0101
-
-#define Error_rh_r_ADD      0x0200
+#define read_co2_r_ADD      0x0100
 
 #define TIMEOUT_LIMIT       20
 #define SUCCESS_MASK        0x0100

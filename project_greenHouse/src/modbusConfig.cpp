@@ -30,7 +30,7 @@ int modbusConfig::get_rh(){
 }
 
 int modbusConfig::get_co2(){
-	return (co2_.read()/10)*100;
+	return (co2_.read()/10);
 }
 
 modbusConfig::~modbusConfig() {

@@ -59,6 +59,8 @@ SemaphoreHandle_t xSem;
 modbusConfig modbus;
 DigitalIoPin encoder_A(0, 5, DigitalIoPin::pullup, true);
 DigitalIoPin encoder_B(0, 6, DigitalIoPin::pullup, true);
+DigitalIoPin encoder_Button(1, 8, DigitalIoPin::pullup, true);
+DigitalIoPin solenoid_valve(0, 27, DigitalIoPin::pullup, true);
 
 /* variables to read from MODBUS sensors */
 struct SensorData {
@@ -67,6 +69,7 @@ struct SensorData {
 	int co2;
 	uint64_t time_stamp;
 };
+
 struct dataevent {
 	int t;
 	int r;
@@ -74,6 +77,9 @@ struct dataevent {
 	uint64_t t_stamp;
 };
 
+/* read co2 value set from the LCD UI */
+
+static int co2_new = 0;
 /* Interrupt handlers must be wrapped with extern "C" */
 
 extern "C"{
@@ -128,12 +134,10 @@ void vConfigureTimerForRunTimeStats( void ) {
 /* function declarations for MQTT */
 uint32_t prvGetTimeMs(void);
 PlaintextTransportStatus_t prvConnectToServerWithBackoffRetries( NetworkContext_t * pxNetworkContext );
-void prvCreateMQTTConnectionWithBroker( MQTTContext_t * pxMQTTContext,
-                                               NetworkContext_t * pxNetworkContext );
+void prvCreateMQTTConnectionWithBroker( MQTTContext_t * pxMQTTContext, NetworkContext_t * pxNetworkContext );
 void prvMQTTSubscribeWithBackoffRetries( MQTTContext_t * pxMQTTContext );
 void prvMQTTPublishToTopic( char *, MQTTContext_t * pxMQTTContext );
-MQTTStatus_t MQTT_ProcessLoop( MQTTContext_t * pContext,
-                               uint32_t timeoutMs );
+MQTTStatus_t MQTT_ProcessLoop( MQTTContext_t * pContext, uint32_t timeoutMs );
 
 }
 
@@ -249,7 +253,7 @@ static void vTaskLCD(void *pvParams){
 	LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
 	IntegerEdit *co2_= new IntegerEdit(&lcd, std::string("CO2"), 10000, 0, 1);
-	co2_t= new IntegerEdit(&lcd, std::string("CO2 target"), 10000, 0, 1);
+	co2_t= new IntegerEdit(&lcd, std::string("CO2 target"), 10000, 0, 50);
 	IntegerEdit *rh_= new IntegerEdit(&lcd, std::string("RH"), 100, 0, 1);
 	IntegerEdit *temp_= new IntegerEdit(&lcd, std::string("Temp"), 60, -40, 1);
 
@@ -271,13 +275,24 @@ static void vTaskLCD(void *pvParams){
 
 		// 2. take semaphore and update
 		if(xQueueReceive(hq, &e, portMAX_DELAY)){     // receive data sensors from queue
-			
-      temp_->setValue(e.t);
+			temp_->setValue(e.t);
 			rh_->setValue(e.r);
 			co2_->setValue(e.c);
 			menu.event(MenuItem::show);
-
 		}
+
+		co2_new = co2_t->getValue();
+
+		/* control the valve */
+		if(co2_new < co2_->getValue()) {
+			solenoid_valve.write(false);
+			ITM_write("valve closed!");
+		}
+		else if(co2_new > co2_->getValue()) {
+			solenoid_valve.write(true);
+			ITM_write("valve open!");
+		}
+
 		vTaskDelay(500);
 	}
 }
@@ -293,18 +308,16 @@ static void vTaskMODBUS(void *pvParams){
 		sensor_event.co2 = modbus.get_co2();
         sensor_event.time_stamp= xTaskGetTickCount();
 
-        xQueueSendToBack(hq, &sensor_event, portMAX_DELAY);
+		sprintf(buff, "\n\rtemp: %d\n\rrh: %d\n\rco2: %d", sensor_event.temp, sensor_event.rh, sensor_event.co2);
+		//sysMutex.lock();
+		ITM_write(buff);
+		//sysMutex.unlock();
 
+		xQueueSend(hq, &sensor_event, 0);
 
-      sprintf(buff, "\n\rtemp: %d\n\rrh: %d\n\rco2: %d", sensor_event.temp, sensor_event.rh, sensor_event.co2);
-      sysMutex.lock();
-      ITM_write(buff);
-      sysMutex.unlock();
-		  vTaskDelay(500);
-      xQueueSend(hq, &sensor_event, 0);
-      
-      //use a timeout here
-      xQueueSend(mq, &sensor_event, 0);
+        //use a timeout here
+        xQueueSend(mq, &sensor_event, 0);
+        vTaskDelay(500);
 	}
 }
 
@@ -323,9 +336,9 @@ int main(void) {
 	/* Configure pins and ports for Rotary Encoder as input, pullup, and inverted */
 	//DigitalIoPin encoder_A(0, 5, DigitalIoPin::pullup, true);
 	//DigitalIoPin encoder_B(0, 6, DigitalIoPin::pullup, true);
-	DigitalIoPin encoder_Button(1, 8, DigitalIoPin::pullup, true);
+	//DigitalIoPin encoder_Button(1, 8, DigitalIoPin::pullup, true);
 
-	DigitalIoPin solenoid_valve(0, 27, DigitalIoPin::pullup, true);
+	//DigitalIoPin solenoid_valve(0, 27, DigitalIoPin::pullup, true);
 
 	/* configure interrupts for those buttons */
 	//enable_interrupt(IRQ number, NVIC priority, port, pin)
@@ -336,14 +349,14 @@ int main(void) {
 	xSem = xSemaphoreCreateCounting(10, 0);
 
 	/* create a queue of max 10 events */
-	hq = xQueueCreate(10, sizeof(int));
+	hq = xQueueCreate(10, sizeof(dataevent));
 	mq = xQueueCreate(10, sizeof(SensorData));
 	/* task MQTT */
 	xTaskCreate( prvMQTTTask,          /* Function that implements the task. */
 	                 "MQTT task",               /* Text name for the task - only used for debugging. */
-	                 ((configMINIMAL_STACK_SIZE)+128), /* Size of stack (in words, not bytes) to allocate for the task. */
+	                 ((configMINIMAL_STACK_SIZE)+512), /* Size of stack (in words, not bytes) to allocate for the task. */
 	                 NULL,                     /* Task parameter - not used in this case. */
-	                 tskIDLE_PRIORITY + 1UL,         /* Task priority, must be between 0 and configMAX_PRIORITIES - 1. */
+	                 tskIDLE_PRIORITY,         /* Task priority, must be between 0 and configMAX_PRIORITIES - 1. */
 	                 NULL );                   /* Used to pass out a handle to the created task - not used in this case. */
 
 	/* task LCD */
@@ -356,7 +369,7 @@ int main(void) {
 
 	/* task measurement modbus */
 	xTaskCreate(vTaskMODBUS, "Measuring",
-			((configMINIMAL_STACK_SIZE)+128), NULL, tskIDLE_PRIORITY + 1UL,
+			((configMINIMAL_STACK_SIZE)+256), NULL, tskIDLE_PRIORITY + 1UL,
 						(TaskHandle_t *) NULL);
 
 	vTaskStartScheduler();

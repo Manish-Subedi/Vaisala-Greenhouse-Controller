@@ -70,7 +70,12 @@ SemaphoreHandle_t xSem;
 // Semaphore and timeout for sending data to MQTT in intervals
 SemaphoreHandle_t xSemaphoreMQTT;
 TimerHandle_t sendToMQTTTimer;
-const TickType_t MQTTInterval = pdMS_TO_TICKS(3000);
+const TickType_t MQTTInterval = pdMS_TO_TICKS(3000);	// 30 000 = 5 minutes
+
+// Semaphore and timeout for activating valve
+SemaphoreHandle_t xSemaphoreValve;
+TimerHandle_t controlValveTimer;
+const TickType_t valveInterval = pdMS_TO_TICKS(6000);
 
 modbusConfig modbus;
 DigitalIoPin encoder_A(0, 5, DigitalIoPin::pullup, true);
@@ -294,7 +299,6 @@ static void vTaskLCD(void *pvParams){
 			rh_->setValue(e.r);
 			co2_->setValue(e.c);
 			menu.event(MenuItem::show);
-
 		}
 		vTaskDelay(500);
 	}
@@ -338,6 +342,19 @@ void vMQTTTimerCallback( TimerHandle_t xTimer ) {
     }
 }
 
+void vValveTimerCallBack( TimerHandle_t xTimer ) {
+    if( xSemaphoreGive( xSemaphoreValve ) != pdTRUE )
+    {
+    	sysMutex.lock();
+    	ITM_write("xSemaphoreValve failed!");
+    	sysMutex.unlock();
+    } else {
+    	sysMutex.lock();
+    	ITM_write("xSemaphoreValve given!");
+    	sysMutex.unlock();
+    }
+}
+
 int main(void) {
 
  	prvHardwareSetup();
@@ -374,6 +391,10 @@ int main(void) {
 	/* setting things up for sending data to MQTT in invervals */
 	xSemaphoreMQTT = xSemaphoreCreateBinary();
 	sendToMQTTTimer = xTimerCreate("Send to MQTT", MQTTInterval, pdTRUE, (void *)0, vMQTTTimerCallback);
+
+	/* setting things up for allowing valve control */
+	xSemaphoreValve = xSemaphoreCreateBinary();
+	controlValveTimer = xTimerCreate("Valve control", valveInterval, pdTRUE, (void *)0, vValveTimerCallBack);
 
 	/* task MQTT */
 	xTaskCreate( prvMQTTTask,          /* Function that implements the task. */

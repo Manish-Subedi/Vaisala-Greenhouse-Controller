@@ -43,7 +43,7 @@
 #include "core_mqtt_serializer.h"
 
 /* Include transport interface. */
-#include "transport_interface.h"
+#include "../interface/transport_interface.h"
 
 /**
  * @cond DOXYGEN_IGNORE
@@ -658,8 +658,8 @@ MQTTStatus_t MQTT_Disconnect( MQTTContext_t * pContext );
  * @endcode
  */
 /* @[declare_mqtt_processloop] */
-MQTTStatus_t MQTT_ProcessLoop( MQTTContext_t * pContext,
-                               uint32_t timeoutMs );
+//MQTTStatus_t MQTT_ProcessLoop( MQTTContext_t * pContext,
+    //                           uint32_t timeoutMs );
 /* @[declare_mqtt_processloop] */
 
 /**

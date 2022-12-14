@@ -1,3 +1,4 @@
+#if 0
 /*
  * FreeRTOS V202111.00
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
@@ -67,7 +68,6 @@
 #include "using_plaintext.h"
 
 
-
 /*-----------------------------------------------------------*/
 
 /* Compile time error for undefined configs. */
@@ -132,7 +132,8 @@
  * The topic name starts with the client identifier to ensure that each demo
  * interacts with a unique topic name.
  */
-#define mqttexampleTOPIC                             democonfigCLIENT_IDENTIFIER "/example/topic"
+//#define mqttexampleTOPIC                             democonfigCLIENT_IDENTIFIER "/example/topic"
+#define mqttexampleTOPIC                             democonfigCLIENT_IDENTIFIER
 
 /**
  * @brief The number of topic filters to subscribe.
@@ -721,7 +722,7 @@ static void prvMQTTPublishToTopic( MQTTContext_t * pxMQTTContext )
     MQTTStatus_t xResult;
     MQTTPublishInfo_t xMQTTPublishInfo;
     //char msg[40] = mqttexampleMESSAGE;
-    char msg[40] = {"wow_manis"};
+
     int len = strlen(msg);
     sprintf(&msg[len], " %d", (int)xTaskGetTickCount());
     len = strlen(msg);
@@ -902,3 +903,4 @@ static uint32_t prvGetTimeMs( void )
 }
 
 /*-----------------------------------------------------------*/
+#endif

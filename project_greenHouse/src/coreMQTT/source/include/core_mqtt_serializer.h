@@ -46,7 +46,7 @@
  * defined in core_mqtt_config.h file. */
 #include "core_mqtt_config_defaults.h"
 
-#include "transport_interface.h"
+#include "../interface/transport_interface.h"
 
 /* MQTT packet types. */
 

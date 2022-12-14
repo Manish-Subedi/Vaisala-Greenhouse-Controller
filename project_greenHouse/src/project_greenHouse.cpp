@@ -72,7 +72,7 @@ const TickType_t MQTTInterval = pdMS_TO_TICKS(5000);	// 30 000 = 5 minutes
 // Semaphore and timeout for activating valve
 SemaphoreHandle_t xSemaphoreValve;
 TimerHandle_t controlValveTimer;
-const TickType_t valveInterval = pdMS_TO_TICKS(6000);
+const TickType_t valveInterval = pdMS_TO_TICKS(2000);
 
 modbusConfig modbus;
 
@@ -112,10 +112,11 @@ void PIN_INT0_IRQHandler(void)
     //int i = co2_t->getValue();
     if(encoder_B->read()){
     	//i--;
-    	menu.event(MenuItem::down);
-    }else{
-    	//i++;
     	menu.event(MenuItem::up);
+    }
+    if (encoder_A->read()){
+    	//i++;
+    	menu.event(MenuItem::down);
     }
 	/* switch back to the previous context */
 	portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
@@ -223,7 +224,7 @@ static void vTaskLCD(void *pvParams){
 	LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
 	IntegerEdit *co2_= new IntegerEdit(&lcd, std::string("CO2"), 10000, 0, 1);
-	co2_t= new IntegerEdit(&lcd, std::string("CO2 target"), 10000, 0, 50);
+	co2_t= new IntegerEdit(&lcd, std::string("CO2 target"), 10000, 0, 20);
 	IntegerEdit *rh_= new IntegerEdit(&lcd, std::string("RH"), 100, 0, 1);
 	IntegerEdit *temp_= new IntegerEdit(&lcd, std::string("Temp"), 60, -40, 1);
 
@@ -257,18 +258,18 @@ static void vTaskLCD(void *pvParams){
 		sprintf(read, "\nset_point co2 :%d\n", co2_new);
 		ITM_write(read);
 		/* control the valve */
-		if( xSemaphoreTake( xSemaphoreValve, ( TickType_t ) 0 ) ) {
+		if( xSemaphoreTake( xSemaphoreValve, ( TickType_t ) 0 ) == pdTRUE ) {
 
-		if((co2_new+offset) < co2_->getValue()) {
-			solenoid_valve->write(false);
-			solenoid_state = 0;
-			ITM_write("\nvalve closed!\n");
-		}
-		else if((co2_new-offset) > co2_->getValue()) {
-			solenoid_valve->write(true);
-			solenoid_state = 1;
-			ITM_write("\nvalve open!\n");
-		}
+			if((co2_new+offset) < co2_->getValue()) {
+				solenoid_valve->write(false);
+				solenoid_state = 0;
+				ITM_write("\nvalve closed!\n");
+			}
+			else if((co2_new-offset) > co2_->getValue()) {
+				solenoid_valve->write(true);
+				solenoid_state = 1;
+				ITM_write("\nvalve open!\n");
+			}
 		}
 
 		vTaskDelay(500);

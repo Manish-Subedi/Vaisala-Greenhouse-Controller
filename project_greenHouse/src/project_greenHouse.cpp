@@ -33,6 +33,7 @@
 #include "IntegerEdit.h"
 #include "SimpleMenu.h"
 #include "./mqtt_demo/MQTT_custom.h"
+#include "timers.h"
 
 SimpleMenu menu;
 IntegerEdit *co2_t;
@@ -65,6 +66,11 @@ Fmutex sysMutex;
 QueueHandle_t hq; //sensor data
 QueueHandle_t mq; // mqtt data
 SemaphoreHandle_t xSem;
+
+// Semaphore and timeout for sending data to MQTT in intervals
+SemaphoreHandle_t xSemaphoreMQTT;
+TimerHandle_t sendToMQTTTimer;
+const TickType_t MQTTInterval = pdMS_TO_TICKS(3000);
 
 modbusConfig modbus;
 DigitalIoPin encoder_A(0, 5, DigitalIoPin::pullup, true);
@@ -143,7 +149,6 @@ void prvMQTTSubscribeWithBackoffRetries( MQTTContext_t * pxMQTTContext );
 void prvMQTTPublishToTopic( char *, MQTTContext_t * pxMQTTContext );
 MQTTStatus_t MQTT_ProcessLoop( MQTTContext_t * pContext,
                                uint32_t timeoutMs );
-
 }
 
 uint8_t ucSharedBuffer[ mqttexampleSHARED_BUFFER_SIZE ];
@@ -304,20 +309,33 @@ static void vTaskMODBUS(void *pvParams){
 		sensor_event.temp = modbus.get_temp();
 		sensor_event.rh = modbus.get_rh();
 		sensor_event.co2 = modbus.get_co2();
-        sensor_event.time_stamp= xTaskGetTickCount();
+		sensor_event.time_stamp= xTaskGetTickCount();
 
-        xQueueSendToBack(hq, &sensor_event, portMAX_DELAY);
+		sprintf(buff, "\n\rtemp: %d\n\rrh: %d\n\rco2: %d", sensor_event.temp, sensor_event.rh, sensor_event.co2);
+		sysMutex.lock();
+		ITM_write(buff);
+		sysMutex.unlock();
+		vTaskDelay(500);
+		xQueueSend(hq, &sensor_event, 0);
 
-      sprintf(buff, "\n\rtemp: %d\n\rrh: %d\n\rco2: %d", sensor_event.temp, sensor_event.rh, sensor_event.co2);
-      sysMutex.lock();
-      ITM_write(buff);
-      sysMutex.unlock();
-		  vTaskDelay(500);
-      xQueueSend(hq, &sensor_event, 0);
-      
-      //use a timeout here
-      xQueueSend(mq, &sensor_event, 0);
+        if( xSemaphoreTake( xSemaphoreMQTT, ( TickType_t ) 0 ) ) {
+        	xQueueSend(mq, &sensor_event, 0);
+        }
 	}
+}
+
+
+void vMQTTTimerCallback( TimerHandle_t xTimer ) {
+    if( xSemaphoreGive( xSemaphoreMQTT ) != pdTRUE )
+    {
+    	sysMutex.lock();
+    	ITM_write("xSemaphoreMQTT failed!");
+    	sysMutex.unlock();
+    } else {
+    	sysMutex.lock();
+    	ITM_write("xSemaphoreMQTT given!");
+    	sysMutex.unlock();
+    }
 }
 
 int main(void) {
@@ -350,8 +368,13 @@ int main(void) {
 
 	/* create a queue of max 10 events */
 
-	hq = xQueueCreate(10, sizeof(int));
+	hq = xQueueCreate(10, sizeof(dataevent));
 	mq = xQueueCreate(10, sizeof(SensorData));
+
+	/* setting things up for sending data to MQTT in invervals */
+	xSemaphoreMQTT = xSemaphoreCreateBinary();
+	sendToMQTTTimer = xTimerCreate("Send to MQTT", MQTTInterval, pdTRUE, (void *)0, vMQTTTimerCallback);
+
 	/* task MQTT */
 	xTaskCreate( prvMQTTTask,          /* Function that implements the task. */
 	                 "MQTT task",               /* Text name for the task - only used for debugging. */

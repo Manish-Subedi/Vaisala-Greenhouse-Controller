@@ -21,7 +21,6 @@ int ModbusRegister::read() {
 	uint8_t result = hr ? m->readHoldingRegisters(addr, 1) : m->readInputRegisters(addr, 1) ;
 	// check if we were able to read
 	if (result == m->ku8MBSuccess) {
-		vTaskDelay(5);
 		return (int16_t)m->getResponseBuffer(0);
 	}
 	return -1;

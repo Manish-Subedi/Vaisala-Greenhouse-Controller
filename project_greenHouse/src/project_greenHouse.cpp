@@ -22,7 +22,7 @@
 #include "FreeRTOS.h"
 #include "heap_lock_monitor.h"
 #include "task.h"
-#include "queue.h"
+
 #include "DigitalIoPin.h"
 #include "ITM_write.h"
 #include "Fmutex.h"
@@ -33,6 +33,7 @@
 #include "IntegerEdit.h"
 #include "SimpleMenu.h"
 #include "./mqtt_demo/MQTT_custom.h"
+#include "timers.h"
 
 SimpleMenu menu;
 IntegerEdit *co2_t;
@@ -49,9 +50,29 @@ static void prvHardwareSetup(void) {
 	ITM_write("ITM ok!\n");
 }
 
+
+
+struct BtnEvent {
+	int pin;
+	uint64_t timestamp;
+};
+
+/* filter duration */
+static int filter_len = 50; // 50ms by default
+
 Fmutex sysMutex;
 QueueHandle_t hq; //sensor data
 QueueHandle_t mq; // mqtt data
+
+// Semaphore and timeout for sending data to MQTT in intervals
+SemaphoreHandle_t xSemaphoreMQTT;
+TimerHandle_t sendToMQTTTimer;
+const TickType_t MQTTInterval = pdMS_TO_TICKS(1000);	// 30 000 = 5 minutes
+
+// Semaphore and timeout for activating valve
+SemaphoreHandle_t xSemaphoreValve;
+TimerHandle_t controlValveTimer;
+const TickType_t valveInterval = pdMS_TO_TICKS(6000);
 
 modbusConfig modbus;
 
@@ -99,7 +120,6 @@ void PIN_INT0_IRQHandler(void)
 	/* switch back to the previous context */
 	portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
 }
-#if 0
 /* ISR for encode rotator B */
 void PIN_INT1_IRQHandler(void){
 	portBASE_TYPE xHigherPriorityTaskWoken = pdTRUE;
@@ -108,7 +128,7 @@ void PIN_INT1_IRQHandler(void){
 	xQueueSendFromISR(hq, &e, &xHigherPriorityTaskWoken);
 	portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
 }
-#endif
+
 /* ISR for button 3 */
 void PIN_INT2_IRQHandler(void){
 	Board_LED_Toggle(2);
@@ -136,7 +156,6 @@ void prvCreateMQTTConnectionWithBroker( MQTTContext_t * pxMQTTContext, NetworkCo
 void prvMQTTSubscribeWithBackoffRetries( MQTTContext_t * pxMQTTContext );
 void prvMQTTPublishToTopic( char *, MQTTContext_t * pxMQTTContext );
 MQTTStatus_t MQTT_ProcessLoop( MQTTContext_t * pContext, uint32_t timeoutMs );
-
 }
 
 uint8_t ucSharedBuffer[ mqttexampleSHARED_BUFFER_SIZE ];
@@ -201,6 +220,7 @@ static void prvMQTTTask( void * pvParameters )
 }
 
 /* task to wait on the queue event from ISR and print it */
+
 static void vTaskLCD(void *pvParams){
 	//LCD configuration
 	DigitalIoPin *rs = new DigitalIoPin(0, 29, DigitalIoPin::output);
@@ -246,6 +266,8 @@ static void vTaskLCD(void *pvParams){
 		sprintf(read, "%d\n", co2_new);
 		ITM_write(read);
 		/* control the valve */
+		if( xSemaphoreTake( xSemaphoreValve, ( TickType_t ) 0 ) ) {
+
 		if((co2_new+offset) < co2_->getValue()) {
 			solenoid_valve->write(false);
 			ITM_write("\nvalve closed!\n");
@@ -253,6 +275,7 @@ static void vTaskLCD(void *pvParams){
 		else if((co2_new-offset) > co2_->getValue()) {
 			solenoid_valve->write(true);
 			ITM_write("\nvalve open!\n");
+		}
 		}
 
 		vTaskDelay(500);
@@ -268,22 +291,50 @@ static void vTaskMODBUS(void *pvParams){
 		sensor_event.temp = modbus.get_temp();
 		sensor_event.rh = modbus.get_rh();
 		sensor_event.co2 = modbus.get_co2();
-        sensor_event.time_stamp= xTaskGetTickCount();
+		sensor_event.time_stamp= xTaskGetTickCount();
 
 		sprintf(buff, "\n\rtemp: %d\n\rrh: %d\n\rco2: %d", sensor_event.temp, sensor_event.rh, sensor_event.co2);
-		//sysMutex.lock();
+		sysMutex.lock();
 		ITM_write(buff);
-		//sysMutex.unlock();
-
+		sysMutex.unlock();
+		vTaskDelay(500);
 		xQueueSend(hq, &sensor_event, 0);
 
-        //use a timeout here
-        xQueueSend(mq, &sensor_event, 0);
-        vTaskDelay(500);
+        if( xSemaphoreTake( xSemaphoreMQTT, ( TickType_t ) 0 ) ) {
+        	xQueueSend(mq, &sensor_event, 0);
+        }
 	}
 }
 
+
+void vMQTTTimerCallback( TimerHandle_t xTimer ) {
+    if( xSemaphoreGive( xSemaphoreMQTT ) != pdTRUE )
+    {
+    	sysMutex.lock();
+    	ITM_write("xSemaphoreMQTT failed!");
+    	sysMutex.unlock();
+    } else {
+    	sysMutex.lock();
+    	ITM_write("xSemaphoreMQTT given!");
+    	sysMutex.unlock();
+    }
+}
+
+void vValveTimerCallBack( TimerHandle_t xTimer ) {
+    if( xSemaphoreGive( xSemaphoreValve ) != pdTRUE )
+    {
+    	sysMutex.lock();
+    	ITM_write("xSemaphoreValve failed!");
+    	sysMutex.unlock();
+    } else {
+    	sysMutex.lock();
+    	ITM_write("xSemaphoreValve given!");
+    	sysMutex.unlock();
+    }
+}
+
 int main(void) {
+
  	prvHardwareSetup();
 	heap_monitor_setup();
 
@@ -296,12 +347,24 @@ int main(void) {
 
 	/* configure interrupts for those buttons */
 	//enable_interrupt(IRQ number, NVIC priority, port, pin)
+
 	encoder_A->enable_interrupt(0, 0, 0, 5);
 	encoder_Button->enable_interrupt(2, 0, 1, 8);
 
 	/* create a queue of max 10 events */
+
 	hq = xQueueCreate(10, sizeof(dataevent));
 	mq = xQueueCreate(10, sizeof(SensorData));
+
+	/* setting things up for sending data to MQTT in invervals */
+	xSemaphoreMQTT = xSemaphoreCreateBinary();
+	sendToMQTTTimer = xTimerCreate("Send to MQTT", MQTTInterval, pdTRUE, (void *)0, vMQTTTimerCallback);
+	xTimerStart(sendToMQTTTimer,0);
+
+	/* setting things up for allowing valve control */
+	xSemaphoreValve = xSemaphoreCreateBinary();
+	controlValveTimer = xTimerCreate("Valve control", valveInterval, pdTRUE, (void *)0, vValveTimerCallBack);
+
 	/* task MQTT */
 	xTaskCreate( prvMQTTTask,          /* Function that implements the task. */
 	                 "MQTT task",               /* Text name for the task - only used for debugging. */

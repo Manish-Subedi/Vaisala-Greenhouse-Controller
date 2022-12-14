@@ -43,7 +43,6 @@ private:
 	ModbusRegister temp_;
 	ModbusRegister rh_;
 	ModbusRegister co2_;
-	Fmutex mutex;
 };
 
 #endif /* SRC_MODBUSCONFIG_H_ */

@@ -67,7 +67,7 @@ QueueHandle_t mq; // mqtt data
 // Semaphore and timeout for sending data to MQTT in intervals
 SemaphoreHandle_t xSemaphoreMQTT;
 TimerHandle_t sendToMQTTTimer;
-const TickType_t MQTTInterval = pdMS_TO_TICKS(3000);	// 30 000 = 5 minutes
+const TickType_t MQTTInterval = pdMS_TO_TICKS(1000);	// 30 000 = 5 minutes
 
 // Semaphore and timeout for activating valve
 SemaphoreHandle_t xSemaphoreValve;
@@ -359,6 +359,7 @@ int main(void) {
 	/* setting things up for sending data to MQTT in invervals */
 	xSemaphoreMQTT = xSemaphoreCreateBinary();
 	sendToMQTTTimer = xTimerCreate("Send to MQTT", MQTTInterval, pdTRUE, (void *)0, vMQTTTimerCallback);
+	xTimerStart(sendToMQTTTimer,0);
 
 	/* setting things up for allowing valve control */
 	xSemaphoreValve = xSemaphoreCreateBinary();

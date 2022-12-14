@@ -37,8 +37,6 @@
 SimpleMenu menu;
 IntegerEdit *co2_t;
 
-#if 1
-
 static void prvHardwareSetup(void) {
 	SystemCoreClockUpdate();
 	Board_Init();
@@ -54,13 +52,13 @@ static void prvHardwareSetup(void) {
 Fmutex sysMutex;
 QueueHandle_t hq; //sensor data
 QueueHandle_t mq; // mqtt data
-SemaphoreHandle_t xSem;
 
 modbusConfig modbus;
-DigitalIoPin encoder_A(0, 5, DigitalIoPin::pullup, true);
-DigitalIoPin encoder_B(0, 6, DigitalIoPin::pullup, true);
-DigitalIoPin encoder_Button(1, 8, DigitalIoPin::pullup, true);
-DigitalIoPin solenoid_valve(0, 27, DigitalIoPin::pullup, true);
+
+DigitalIoPin *encoder_A;
+DigitalIoPin *encoder_B;
+DigitalIoPin *encoder_Button;
+DigitalIoPin *solenoid_valve;
 
 /* variables to read from MODBUS sensors */
 struct SensorData {
@@ -79,7 +77,7 @@ struct dataevent {
 
 /* read co2 value set from the LCD UI */
 
-static int co2_new = 0;
+int co2_new = 0;
 /* Interrupt handlers must be wrapped with extern "C" */
 
 extern "C"{
@@ -91,7 +89,7 @@ void PIN_INT0_IRQHandler(void)
 	Chip_PININT_ClearIntStatus(LPC_GPIO_PIN_INT, PININTCH(0));
 	/* create an event and send to the queue upon an interrupt */
     //int i = co2_t->getValue();
-    if(encoder_B.read()){
+    if(encoder_B->read()){
     	//i--;
     	menu.event(MenuItem::down);
     }else{
@@ -188,56 +186,17 @@ static void prvMQTTTask( void * pvParameters )
         /* If server rejected the subscription request, attempt to resubscribe to
          * the topic. Attempts are made according to the exponential backoff retry
          * strategy declared in backoff_algorithm.h. */
-        //prvMQTTSubscribeWithBackoffRetries( &xMQTTContext );
+        prvMQTTSubscribeWithBackoffRetries( &xMQTTContext );
 
         /******************* Publish and Keep Alive Loop. *********************/
 
         /* Publish messages with QoS0, then send and process Keep Alive messages. */
         for( ;; ){
         	xQueueReceive(mq, &recv, portMAX_DELAY);
-        	sprintf(buff, "field1=%d&field2=%d&field3=%d&field4=%ld", recv.co2, recv.rh, recv.temp, xTaskGetTickCount());
+        	sprintf(buff, "field1=%d&field2=%d&field3=%d&field4=%d&field5=%d", recv.co2, recv.rh, recv.temp, 0, co2_new);
         	prvMQTTPublishToTopic( buff, &xMQTTContext );
         	vTaskDelay(500);
         }
-#if 0
-        /******************** Unsubscribe from the topic. *********************/
-        LogInfo( ( "Unsubscribe from the MQTT topic %s.", mqttexampleTOPIC ) );
-        prvMQTTUnsubscribeFromTopic( &xMQTTContext );
-
-        /* Process the incoming packet from the broker. */
-        xMQTTStatus = MQTT_ProcessLoop( &xMQTTContext,
-                                        mqttexamplePROCESS_LOOP_TIMEOUT_MS );
-        configASSERT( xMQTTStatus == MQTTSuccess );
-
-        /**************************** Disconnect. *****************************/
-
-        /* Send an MQTT Disconnect packet over the connected TCP socket.
-         * There is no corresponding response for a disconnect packet. After
-         * sending the disconnect, the client must close the network connection. */
-        LogInfo( ( "Disconnecting the MQTT connection with %s.",
-                   democonfigMQTT_BROKER_ENDPOINT ) );
-        xMQTTStatus = MQTT_Disconnect( &xMQTTContext );
-        configASSERT( xMQTTStatus == MQTTSuccess );
-
-        /* Close the network connection. */
-        xNetworkStatus = Plaintext_FreeRTOS_Disconnect( &xNetworkContext );
-        configASSERT( xNetworkStatus == PLAINTEXT_TRANSPORT_SUCCESS );
-
-        /* Reset SUBACK status for each topic filter after completion of
-         * subscription request cycle. */
-        for( ulTopicCount = 0; ulTopicCount < mqttexampleTOPIC_COUNT; ulTopicCount++ )
-        {
-            xTopicFilterContext[ ulTopicCount ].xSubAckStatus = MQTTSubAckFailure;
-        }
-
-        /* Wait for some time between two iterations to ensure that we do not
-         * bombard the MQTT broker. */
-        LogInfo( ( "prvMQTTDemoTask() completed an iteration successfully. " ) );
-                 //  "Total free heap is %u.", xPortGetFreeHeapSize() ) );
-        LogInfo( ( "Demo completed successfully." ) );
-        LogInfo( ( "Short delay before starting the next iteration.... \r\n" ) );
-        vTaskDelay( mqttexampleDELAY_BETWEEN_DEMO_ITERATIONS );
-#endif
     }
 }
 
@@ -282,15 +241,18 @@ static void vTaskLCD(void *pvParams){
 		}
 
 		co2_new = co2_t->getValue();
-
+		int offset = 10;
+		char read[10];
+		sprintf(read, "%d\n", co2_new);
+		ITM_write(read);
 		/* control the valve */
-		if(co2_new < co2_->getValue()) {
-			solenoid_valve.write(false);
-			ITM_write("valve closed!");
+		if((co2_new+offset) < co2_->getValue()) {
+			solenoid_valve->write(false);
+			ITM_write("\nvalve closed!\n");
 		}
-		else if(co2_new > co2_->getValue()) {
-			solenoid_valve.write(true);
-			ITM_write("valve open!");
+		else if((co2_new-offset) > co2_->getValue()) {
+			solenoid_valve->write(true);
+			ITM_write("\nvalve open!\n");
 		}
 
 		vTaskDelay(500);
@@ -325,28 +287,17 @@ int main(void) {
  	prvHardwareSetup();
 	heap_monitor_setup();
 
-	/* UART port config */
-	LpcPinMap none = {-1, -1}; // unused pin has negative values in it
-	LpcPinMap txpin = { 0, 18 }; // transmit pin that goes to debugger's UART->USB converter
-	LpcPinMap rxpin = { 0, 13 }; // receive pin that goes to debugger's UART->USB converter
-	LpcUartConfig cfg = { LPC_USART0, 115200, UART_CFG_DATALEN_8 | UART_CFG_PARITY_NONE | UART_CFG_STOPLEN_1, false, txpin, rxpin, none, none };
+	/* Configure pins and ports for Rotary Encoder and valve as input, pullup, and inverted */
+	encoder_A = new DigitalIoPin(0, 5, DigitalIoPin::pullup, true);
+	encoder_B = new DigitalIoPin(0, 6, DigitalIoPin::pullup, true);
+	encoder_Button = new DigitalIoPin(1, 8, DigitalIoPin::pullup, true);
+	solenoid_valve = new DigitalIoPin(0, 27, DigitalIoPin::pullup, true);
 
-	LpcUart *dbgu = new LpcUart(cfg);
-
-	/* Configure pins and ports for Rotary Encoder as input, pullup, and inverted */
-	//DigitalIoPin encoder_A(0, 5, DigitalIoPin::pullup, true);
-	//DigitalIoPin encoder_B(0, 6, DigitalIoPin::pullup, true);
-	//DigitalIoPin encoder_Button(1, 8, DigitalIoPin::pullup, true);
-
-	//DigitalIoPin solenoid_valve(0, 27, DigitalIoPin::pullup, true);
 
 	/* configure interrupts for those buttons */
 	//enable_interrupt(IRQ number, NVIC priority, port, pin)
-	encoder_A.enable_interrupt(0, 0, 0, 5);
-	encoder_Button.enable_interrupt(2, 0, 1, 8);
-
-	/* create a counting sempahore of max 5 events */
-	xSem = xSemaphoreCreateCounting(10, 0);
+	encoder_A->enable_interrupt(0, 0, 0, 5);
+	encoder_Button->enable_interrupt(2, 0, 1, 8);
 
 	/* create a queue of max 10 events */
 	hq = xQueueCreate(10, sizeof(dataevent));
@@ -377,4 +328,3 @@ int main(void) {
 	/* never arrive here */
     return 1 ;
 }
-#endif /* task 1 ends */

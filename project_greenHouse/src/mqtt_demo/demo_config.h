@@ -89,8 +89,8 @@ extern void vLoggingPrintf( const char * pcFormatString,
  *
  * #define democonfigMQTT_BROKER_ENDPOINT				"insert here."
  */
-//#define democonfigMQTT_BROKER_ENDPOINT					"mqtt3.thingspeak.com"
-#define democonfigMQTT_BROKER_ENDPOINT					"152.70.178.116"
+#define democonfigMQTT_BROKER_ENDPOINT					"mqtt3.thingspeak.com"
+//#define democonfigMQTT_BROKER_ENDPOINT					"152.70.178.116"
 
 #define CHANNEL_ID "1955513"
 #define SECRET_MQTT_USERNAME "DCAmDzgFFhoKKy8kCBw3NQA"

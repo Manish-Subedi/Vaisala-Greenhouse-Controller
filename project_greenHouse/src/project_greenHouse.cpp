@@ -50,19 +50,10 @@ static void prvHardwareSetup(void) {
 	ITM_write("ITM ok!\n");
 }
 
-
-
-struct BtnEvent {
-	int pin;
-	uint64_t timestamp;
-};
-
-/* filter duration */
-static int filter_len = 50; // 50ms by default
-
 Fmutex sysMutex;
 QueueHandle_t hq; //sensor data
 QueueHandle_t mq; // mqtt data
+QueueHandle_t iq;
 
 // Semaphore and timeout for sending data to MQTT in intervals
 SemaphoreHandle_t xSemaphoreMQTT;
@@ -72,7 +63,11 @@ const TickType_t MQTTInterval = pdMS_TO_TICKS(5000);	// 30 000 = 5 minutes
 // Semaphore and timeout for activating valve
 SemaphoreHandle_t xSemaphoreValve;
 TimerHandle_t controlValveTimer;
-const TickType_t valveInterval = pdMS_TO_TICKS(2000);
+const TickType_t valveInterval = pdMS_TO_TICKS(10000);
+
+// valve close timeout
+TimerHandle_t controlValveTimerOpen;
+const TickType_t valveIntervalOpen = pdMS_TO_TICKS(2000);
 
 modbusConfig modbus;
 
@@ -108,17 +103,8 @@ void PIN_INT0_IRQHandler(void)
 	Board_LED_Toggle(2);
 	portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
 	Chip_PININT_ClearIntStatus(LPC_GPIO_PIN_INT, PININTCH(0));
-	/* create an event and send to the queue upon an interrupt */
-    //int i = co2_t->getValue();
-    if(encoder_B->read()){
-    	//i--;
-    	menu.event(MenuItem::up);
-    }
-    if (encoder_A->read()){
-    	//i++;
-    	menu.event(MenuItem::down);
-    }
-	/* switch back to the previous context */
+	int e = 1;
+	xQueueSendFromISR(iq, &e, &xHigherPriorityTaskWoken);
 	portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
 }
 
@@ -127,10 +113,8 @@ void PIN_INT2_IRQHandler(void){
 	Board_LED_Toggle(2);
 	portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
 	Chip_PININT_ClearIntStatus(LPC_GPIO_PIN_INT, PININTCH(2));
-	ITM_write("button ok");
-	if(menu.getIndex()==1 ) menu.event(MenuItem::ok);
-	//menu.event(MenuItem::ok);
-	//menu.event(MenuItem::show);
+	int e = 2;
+	xQueueSendFromISR(iq, &e, &xHigherPriorityTaskWoken);
 	portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
 }
 
@@ -228,6 +212,8 @@ static void vTaskLCD(void *pvParams){
 	IntegerEdit *rh_= new IntegerEdit(&lcd, std::string("RH"), 100, 0, 1);
 	IntegerEdit *temp_= new IntegerEdit(&lcd, std::string("Temp"), 60, -40, 1);
 
+	solenoid_valve = new DigitalIoPin(0, 27, DigitalIoPin::output);
+
 	menu.addItem(new MenuItem(co2_));
 	menu.addItem(new MenuItem(co2_t));
 	menu.addItem(new MenuItem(rh_));
@@ -245,13 +231,12 @@ static void vTaskLCD(void *pvParams){
 	for( ;; ){
 
 		// 2. take semaphore and update
-		if(xQueueReceive(hq, &e, portMAX_DELAY)){     // receive data sensors from queue
+		if(xQueueReceive(hq, &e, portMAX_DELAY) == pdTRUE){     // receive data sensors from queue
 			temp_->setValue(e.t);
 			rh_->setValue(e.r);
 			co2_->setValue(e.c);
 			menu.event(MenuItem::show);
 		}
-
 		co2_new = co2_t->getValue();
 		int offset = 10;
 		char read[10];
@@ -266,12 +251,12 @@ static void vTaskLCD(void *pvParams){
 				ITM_write("\nvalve closed!\n");
 			}
 			else if((co2_new-offset) > co2_->getValue()) {
-				solenoid_valve->write(true);
+				solenoid_valve->write(false);
 				solenoid_state = 1;
+				xTimerStart(controlValveTimerOpen,0);
 				ITM_write("\nvalve open!\n");
 			}
 		}
-
 		vTaskDelay(500);
 	}
 }
@@ -283,9 +268,11 @@ static void vTaskMODBUS(void *pvParams){
 
 	while(1)  {
 		sensor_event.temp = modbus.get_temp();
+		vTaskDelay(pdMS_TO_TICKS(50));
 		sensor_event.rh = modbus.get_rh();
+		vTaskDelay(pdMS_TO_TICKS(50));
 		sensor_event.co2 = modbus.get_co2();
-
+		vTaskDelay(pdMS_TO_TICKS(50));
 
         if( xSemaphoreTake( xSemaphoreMQTT, 0 ) == pdTRUE) {
         	sprintf(buff, "\n\rtemp: %d\n\rrh: %d\n\rco2: %d", sensor_event.temp, sensor_event.rh, sensor_event.co2);
@@ -301,13 +288,12 @@ static void vTaskMODBUS(void *pvParams){
 			sysMutex.lock();
 			ITM_write(buff);
 			sysMutex.unlock();
-			vTaskDelay(500);
 			xQueueSend(hq, &sensor_event, 0); // LCD queue
         }
 	}
 }
 
-
+/* callback for publish mqtt timer */
 void vMQTTTimerCallback( TimerHandle_t xTimer ) {
     if( xSemaphoreGive( xSemaphoreMQTT ) != pdTRUE )
     {
@@ -320,7 +306,7 @@ void vMQTTTimerCallback( TimerHandle_t xTimer ) {
     	sysMutex.unlock();
     }
 }
-
+/* callback for valve init */
 void vValveTimerCallBack( TimerHandle_t xTimer ) {
     if( xSemaphoreGive( xSemaphoreValve ) != pdTRUE )
     {
@@ -333,7 +319,34 @@ void vValveTimerCallBack( TimerHandle_t xTimer ) {
     	sysMutex.unlock();
     }
 }
+/* callback for valve open-close */
+void vValveCloseTimerCallBack( TimerHandle_t xTimer ) {
+    solenoid_valve->write(false);
+    solenoid_state = 0;
+}
 
+static void vTaskISR(void * pvParameters){
+	int e;
+	while(1){
+		if (xQueueReceive(iq, &e, 0) == pdTRUE){
+			if (e == 1){
+				if(encoder_B->read()){
+					sysMutex.lock();
+					menu.event(MenuItem::up);
+					sysMutex.unlock();
+				}
+				if(encoder_A->read()){
+					sysMutex.lock();
+					menu.event(MenuItem::down);
+					sysMutex.unlock();
+				}
+			}
+			if (e == 2){
+				if(menu.getIndex()==1 ) menu.event(MenuItem::ok);
+			}
+		}
+	}
+}
 int main(void) {
 
  	prvHardwareSetup();
@@ -343,8 +356,6 @@ int main(void) {
 	encoder_A = new DigitalIoPin(0, 5, DigitalIoPin::pullup, true);
 	encoder_B = new DigitalIoPin(0, 6, DigitalIoPin::pullup, true);
 	encoder_Button = new DigitalIoPin(1, 8, DigitalIoPin::pullup, true);
-	solenoid_valve = new DigitalIoPin(0, 27, DigitalIoPin::pullup, true);
-
 
 	/* configure interrupts for those buttons */
 	//enable_interrupt(IRQ number, NVIC priority, port, pin)
@@ -356,6 +367,7 @@ int main(void) {
 
 	hq = xQueueCreate(10, sizeof(dataevent));
 	mq = xQueueCreate(10, sizeof(SensorData));
+	iq = xQueueCreate(5, sizeof(int));
 
 	/* setting things up for sending data to MQTT in invervals */
 	xSemaphoreMQTT = xSemaphoreCreateBinary();
@@ -367,26 +379,29 @@ int main(void) {
 	controlValveTimer = xTimerCreate("Valve control", valveInterval, pdTRUE, (void *)0, vValveTimerCallBack);
 	xTimerStart(controlValveTimer,0);
 
+	controlValveTimerOpen = xTimerCreate("Valve-close control", valveIntervalOpen, pdFALSE, (void *)0, vValveCloseTimerCallBack);
 	/* task MQTT */
 	xTaskCreate( prvMQTTTask,
 	                 "MQTT task",
 	                 ((configMINIMAL_STACK_SIZE)+512),
 	                 NULL,
-	                 tskIDLE_PRIORITY,
+	                 tskIDLE_PRIORITY +1UL,
 	                 NULL );
 
 	/* task LCD */
 	xTaskCreate(vTaskLCD, "LCD_Task",
 			((configMINIMAL_STACK_SIZE)+512), NULL, tskIDLE_PRIORITY + 1UL,
-						(TaskHandle_t *) NULL);
+			(TaskHandle_t *) NULL);
 
-	/* task co2 monitor */
-
+	/* task upon interrupt */
+	xTaskCreate(vTaskISR, "handle ISR events",
+				((configMINIMAL_STACK_SIZE)+128), NULL, tskIDLE_PRIORITY + 1UL,
+				(TaskHandle_t *) NULL);
 
 	/* task measurement modbus */
 	xTaskCreate(vTaskMODBUS, "Measuring",
 			((configMINIMAL_STACK_SIZE)+256), NULL, tskIDLE_PRIORITY + 1UL,
-						(TaskHandle_t *) NULL);
+			(TaskHandle_t *) NULL);
 
 	vTaskStartScheduler();
 

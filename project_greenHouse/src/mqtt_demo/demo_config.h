@@ -90,7 +90,8 @@ extern void vLoggingPrintf( const char * pcFormatString,
  * #define democonfigMQTT_BROKER_ENDPOINT				"insert here."
  */
 //#define democonfigMQTT_BROKER_ENDPOINT					"mqtt3.thingspeak.com"
-#define democonfigMQTT_BROKER_ENDPOINT					"152.70.178.116"
+//#define democonfigMQTT_BROKER_ENDPOINT					"152.70.178.116"   // our own broker
+#define democonfigMQTT_BROKER_ENDPOINT					"test.mosquitto.org"
 
 #define CHANNEL_ID "1955513"
 #define SECRET_MQTT_USERNAME "DCAmDzgFFhoKKy8kCBw3NQA"
@@ -113,8 +114,8 @@ extern void vLoggingPrintf( const char * pcFormatString,
 
 
 #if 1
-#define WIFI_SSID	    "SmartIotMQTT"
-#define WIFI_PASS       "SmartIot"
+#define WIFI_SSID	    "MANIS"//"SmartIotMQTT"
+#define WIFI_PASS       "123IscA!"//"SmartIot"
 #endif
 
 #endif /* DEMO_CONFIG_H */

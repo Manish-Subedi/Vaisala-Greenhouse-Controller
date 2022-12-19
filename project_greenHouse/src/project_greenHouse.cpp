@@ -58,12 +58,12 @@ QueueHandle_t iq;
 // Semaphore and timeout for sending data to MQTT in intervals
 SemaphoreHandle_t xSemaphoreMQTT;
 TimerHandle_t sendToMQTTTimer;
-const TickType_t MQTTInterval = pdMS_TO_TICKS(5000);	// 30 000 = 5 minutes
+const TickType_t MQTTInterval = pdMS_TO_TICKS(2000);	// 30 000 = 5 minutes
 
 // Semaphore and timeout for activating valve
 SemaphoreHandle_t xSemaphoreValve;
 TimerHandle_t controlValveTimer;
-const TickType_t valveInterval = pdMS_TO_TICKS(10000);
+const TickType_t valveInterval = pdMS_TO_TICKS(2000);
 
 // valve close timeout
 TimerHandle_t controlValveTimerOpen;
@@ -182,7 +182,7 @@ static void prvMQTTTask( void * pvParameters )
         /* If server rejected the subscription request, attempt to resubscribe to
          * the topic. Attempts are made according to the exponential backoff retry
          * strategy declared in backoff_algorithm.h. */
-        prvMQTTSubscribeWithBackoffRetries( &xMQTTContext );
+        //prvMQTTSubscribeWithBackoffRetries( &xMQTTContext );
 
         /******************* Publish and Keep Alive Loop. *********************/
 
@@ -245,13 +245,13 @@ static void vTaskLCD(void *pvParams){
 		/* control the valve */
 		if( xSemaphoreTake( xSemaphoreValve, ( TickType_t ) 0 ) == pdTRUE ) {
 
-			if((co2_new+offset) < co2_->getValue()) {
+			if((co2_new + offset) < co2_->getValue()) {
 				solenoid_valve->write(false);
 				solenoid_state = 0;
 				ITM_write("\nvalve closed!\n");
 			}
 			else if((co2_new-offset) > co2_->getValue()) {
-				solenoid_valve->write(false);
+				solenoid_valve->write(true);
 				solenoid_state = 1;
 				xTimerStart(controlValveTimerOpen,0);
 				ITM_write("\nvalve open!\n");
@@ -262,6 +262,8 @@ static void vTaskLCD(void *pvParams){
 }
 
 static void vTaskMODBUS(void *pvParams){
+
+	int old_temp = 0, old_rh = 0, old_co2 = 0;
 
 	char buff[40];
 	SensorData sensor_event;
@@ -283,13 +285,18 @@ static void vTaskMODBUS(void *pvParams){
 			xQueueSend(hq, &sensor_event, 0); // LCD queue
         	xQueueSend(mq, &sensor_event, 0); //mqtt queue
         }
-        else {
+        else if (old_temp != sensor_event.temp || old_rh != sensor_event.rh || old_co2 != sensor_event.co2){
         	sprintf(buff, "\n\rtemp: %d\n\rrh: %d\n\rco2: %d", sensor_event.temp, sensor_event.rh, sensor_event.co2);
 			sysMutex.lock();
 			ITM_write(buff);
 			sysMutex.unlock();
 			xQueueSend(hq, &sensor_event, 0); // LCD queue
+
+			old_temp = sensor_event.temp;
+			old_rh = sensor_event.rh;
+			old_co2 = sensor_event.co2;
         }
+
 	}
 }
 
@@ -367,7 +374,7 @@ int main(void) {
 
 	hq = xQueueCreate(10, sizeof(dataevent));
 	mq = xQueueCreate(10, sizeof(SensorData));
-	iq = xQueueCreate(5, sizeof(int));
+	iq = xQueueCreate(15, sizeof(int));
 
 	/* setting things up for sending data to MQTT in invervals */
 	xSemaphoreMQTT = xSemaphoreCreateBinary();
@@ -395,7 +402,7 @@ int main(void) {
 
 	/* task upon interrupt */
 	xTaskCreate(vTaskISR, "handle ISR events",
-				((configMINIMAL_STACK_SIZE)+128), NULL, tskIDLE_PRIORITY + 1UL,
+				((configMINIMAL_STACK_SIZE)+256), NULL, tskIDLE_PRIORITY + 1UL,
 				(TaskHandle_t *) NULL);
 
 	/* task measurement modbus */

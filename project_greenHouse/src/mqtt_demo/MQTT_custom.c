@@ -17,6 +17,7 @@ typedef struct topicFilterContext
     const char * pcTopicFilter;
     MQTTSubAckStatus_t xSubAckStatus;
 } topicFilterContext_t;
+
 /**
  * @brief An array containing the context of a SUBACK; the SUBACK status
  * of a filter is updated when the event callback processes a SUBACK.
@@ -111,6 +112,7 @@ void prvCreateMQTTConnectionWithBroker( MQTTContext_t * pxMQTTContext,
     xTransport.send = Plaintext_FreeRTOS_send;
     xTransport.recv = Plaintext_FreeRTOS_recv;
 
+
     /* Initialize MQTT library. */
     xResult = MQTT_Init( pxMQTTContext, &xTransport, prvGetTimeMs, prvEventCallback, &xBuffer );
     configASSERT( xResult == MQTTSuccess );
@@ -127,8 +129,12 @@ void prvCreateMQTTConnectionWithBroker( MQTTContext_t * pxMQTTContext,
     /* The client identifier is used to uniquely identify this MQTT client to
      * the MQTT broker. In a production device the identifier can be something
      * unique, such as a device serial number. */
-    xConnectInfo.pClientIdentifier = democonfigCLIENT_IDENTIFIER;
-    xConnectInfo.clientIdentifierLength = ( uint16_t ) strlen( democonfigCLIENT_IDENTIFIER );
+    xConnectInfo.pClientIdentifier = SECRET_MQTT_CLIENT_ID;
+    xConnectInfo.clientIdentifierLength = ( uint16_t ) strlen( SECRET_MQTT_CLIENT_ID );
+    xConnectInfo.pUserName = SECRET_MQTT_USERNAME;
+    xConnectInfo.userNameLength = ( uint16_t ) strlen(xConnectInfo.pUserName);
+    xConnectInfo.pPassword = SECRET_MQTT_PASSWORD;
+    xConnectInfo.passwordLength = ( uint16_t ) strlen(xConnectInfo.pPassword);
 
     /* Set MQTT keep-alive period. It is the responsibility of the application to ensure
      * that the interval between Control Packets being sent does not exceed the Keep Alive value.
@@ -271,7 +277,7 @@ void prvMQTTPublishToTopic( char *msg, MQTTContext_t * pxMQTTContext )
     //char msg[40] = mqttexampleMESSAGE;
     //extern char msg[40];
     int len = strlen(msg);
-    sprintf(&msg[len], " %d", (int)xTaskGetTickCount());
+    //sprintf(&msg[len], " %d", (int)xTaskGetTickCount());
     len = strlen(msg);
 
     /***

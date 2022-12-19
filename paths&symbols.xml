@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cdtprojectproperties>
+<section name="org.eclipse.cdt.internal.ui.wizards.settingswizards.IncludePaths">
+<language name="C++ Source File">
+<includepath workspace_path="true">/lpc_board_nxp_lpcxpresso_1549/inc</includepath>
+<includepath workspace_path="true">/lpc_chip_15xx/inc</includepath>
+<includepath workspace_path="true">/FreeRTOS/inc</includepath>
+<includepath workspace_path="true">/FreeRTOS/src/include</includepath>
+<includepath workspace_path="true">/FreeRTOS/src/portable/GCC/ARM_CM3</includepath>
+<includepath workspace_path="true">/esp_socket/src/coreMQTT/source/include</includepath>
+<includepath workspace_path="true">/esp_socket/src/coreMQTT/source/interface</includepath>
+<includepath workspace_path="true">/esp_socket/src/backoffAlgorithm/source/include</includepath>
+<includepath workspace_path="true">/esp_socket/src</includepath>
+<includepath workspace_path="true">/esp_socket/src/networking</includepath>
+<includepath workspace_path="true">/esp_socket/src/uart</includepath>
+<includepath workspace_path="true">/esp_socket/src/modbus</includepath>
+
+</language>
+<language name="C Source File">
+<includepath workspace_path="true">/lpc_board_nxp_lpcxpresso_1549/inc</includepath>
+<includepath workspace_path="true">/lpc_chip_15xx/inc</includepath>
+<includepath workspace_path="true">/FreeRTOS/inc</includepath>
+<includepath workspace_path="true">/FreeRTOS/src/include</includepath>
+<includepath workspace_path="true">/FreeRTOS/src/portable/GCC/ARM_CM3</includepath>
+<includepath workspace_path="true">/esp_socket/src/coreMQTT/source/include</includepath>
+<includepath workspace_path="true">/esp_socket/src/coreMQTT/source/interface</includepath>
+<includepath workspace_path="true">/esp_socket/src/backoffAlgorithm/source/include</includepath>
+<includepath workspace_path="true">/esp_socket/src</includepath>
+<includepath workspace_path="true">/esp_socket/src/networking</includepath>
+<includepath workspace_path="true">/esp_socket/src/uart</includepath>
+<includepath workspace_path="true">/esp_socket/src/modbus</includepath>
+
+</language>
+<language name="Assembly Source File">
+<includepath workspace_path="true">/lpc_board_nxp_lpcxpresso_1549/inc</includepath>
+<includepath workspace_path="true">/lpc_chip_15xx/inc</includepath>
+<includepath workspace_path="true">/FreeRTOS/inc</includepath>
+<includepath workspace_path="true">/FreeRTOS/src/include</includepath>
+<includepath workspace_path="true">/FreeRTOS/src/portable/GCC/ARM_CM3</includepath>
+<includepath workspace_path="true">/esp_socket/src/networking</includepath>
+<includepath workspace_path="true">/esp_socket/src/uart</includepath>
+<includepath workspace_path="true">/esp_socket/src/modbus</includepath>
+
+</language>
+<language name="Additional Assembly Source Files">
+<includepath workspace_path="true">/lpc_board_nxp_lpcxpresso_1549/inc</includepath>
+<includepath workspace_path="true">/lpc_chip_15xx/inc</includepath>
+<includepath workspace_path="true">/FreeRTOS/inc</includepath>
+<includepath workspace_path="true">/FreeRTOS/src/include</includepath>
+<includepath workspace_path="true">/FreeRTOS/src/portable/GCC/ARM_CM3</includepath>
+<includepath workspace_path="true">/esp_socket/src/networking</includepath>
+<includepath workspace_path="true">/esp_socket/src/uart</includepath>
+<includepath workspace_path="true">/esp_socket/src/modbus</includepath>
+
+</language>
+<language name="Object File">
+
+</language>
+</section>
+<section name="org.eclipse.cdt.internal.ui.wizards.settingswizards.Macros">
+<language name="C++ Source File">
+<macro>
+<name>DEBUG</name><value/>
+</macro>
+<macro>
+<name>__CODE_RED</name><value/>
+</macro>
+<macro>
+<name>__NEWLIB__</name><value/>
+</macro>
+<macro>
+<name>CORE_M3</name><value/>
+</macro>
+<macro>
+<name>__USE_LPCOPEN</name><value/>
+</macro>
+<macro>
+<name>CPP_USE_HEAP</name><value/>
+</macro>
+<macro>
+<name>__LPC15XX__</name><value/>
+</macro>
+
+</language>
+<language name="C Source File">
+<macro>
+<name>DEBUG</name><value/>
+</macro>
+<macro>
+<name>__CODE_RED</name><value/>
+</macro>
+<macro>
+<name>__NEWLIB__</name><value/>
+</macro>
+<macro>
+<name>CORE_M3</name><value/>
+</macro>
+<macro>
+<name>__USE_LPCOPEN</name><value/>
+</macro>
+<macro>
+<name>CPP_USE_HEAP</name><value/>
+</macro>
+<macro>
+<name>__LPC15XX__</name><value/>
+</macro>
+
+</language>
+<language name="Assembly Source File">
+
+</language>
+<language name="Additional Assembly Source Files">
+
+</language>
+<language name="Object File">
+
+</language>
+</section>
+</cdtprojectproperties>

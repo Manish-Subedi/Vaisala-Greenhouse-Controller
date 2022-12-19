@@ -39,11 +39,11 @@
  * 3. Include the header file "logging_stack.h", if logging is enabled for DEMO.
  */
 
-#include "logging_levels.h"
+#include "../../../project_greenHouse/src/mqtt_demo/logging_levels.h"
 
 /* Logging configuration for the Demo. */
 #ifndef LIBRARY_LOG_NAME
-    #define LIBRARY_LOG_NAME    "MQTT_G2"
+    #define LIBRARY_LOG_NAME    "MQTT_Group2"
 #endif
 
 #ifndef LIBRARY_LOG_LEVEL
@@ -63,7 +63,7 @@ extern void vLoggingPrintf( const char * pcFormatString,
     //#define SdkLog( message )    vLoggingPrintf message
 #endif
 
-#include "logging_stack.h"
+#include "../../../project_greenHouse/src/mqtt_demo/logging_stack.h"
 
 /************ End of logging configuration ****************/
 
@@ -79,7 +79,7 @@ extern void vLoggingPrintf( const char * pcFormatString,
  *
  * #define democonfigCLIENT_IDENTIFIER				"insert here."
  */
-//#define democonfigCLIENT_IDENTIFIER				"channels/1955513/publish"
+#define democonfigCLIENT_IDENTIFIER				"Group2_hackathon"
 
 /**
  * @brief MQTT broker end point to connect to.
@@ -89,13 +89,8 @@ extern void vLoggingPrintf( const char * pcFormatString,
  *
  * #define democonfigMQTT_BROKER_ENDPOINT				"insert here."
  */
-//#define democonfigMQTT_BROKER_ENDPOINT					"mqtt3.thingspeak.com"
-#define democonfigMQTT_BROKER_ENDPOINT					"152.70.178.116"
+#define democonfigMQTT_BROKER_ENDPOINT				"152.70.178.116"
 
-#define CHANNEL_ID "1955513"
-#define SECRET_MQTT_USERNAME "DCAmDzgFFhoKKy8kCBw3NQA"
-#define SECRET_MQTT_CLIENT_ID "DCAmDzgFFhoKKy8kCBw3NQA"
-#define SECRET_MQTT_PASSWORD "qKxqzEzD+xMf2LMg0SU24WYk"
 /**
  * @brief The port to use for the demo.
  *

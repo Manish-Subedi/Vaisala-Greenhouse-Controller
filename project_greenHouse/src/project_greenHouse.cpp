@@ -213,6 +213,7 @@ static void vTaskLCD(void *pvParams){
 	IntegerEdit *temp_= new IntegerEdit(&lcd, std::string("Temp"), 60, -40, 1);
 
 	solenoid_valve = new DigitalIoPin(0, 27, DigitalIoPin::output);
+	solenoid_valve->write(false);
 
 	menu.addItem(new MenuItem(co2_));
 	menu.addItem(new MenuItem(co2_t));
@@ -237,23 +238,28 @@ static void vTaskLCD(void *pvParams){
 			co2_->setValue(e.c);
 			menu.event(MenuItem::show);
 		}
+
 		co2_new = co2_t->getValue();
+		/* write to EEPROM */
+
+
 		int offset = 10;
 		char read[10];
 		sprintf(read, "\nset_point co2 :%d\n", co2_new);
 		ITM_write(read);
 		/* control the valve */
-		if( xSemaphoreTake( xSemaphoreValve, ( TickType_t ) 0 ) == pdTRUE ) {
-
+		//if( xSemaphoreTake( xSemaphoreValve, ( TickType_t ) 0 ) == pdTRUE ) {
+#if 0
 			if((co2_new + offset) < co2_->getValue()) {
 				solenoid_valve->write(false);
 				solenoid_state = 0;
 				ITM_write("\nvalve closed!\n");
 			}
-			else if((co2_new-offset) > co2_->getValue()) {
+#endif
+			if((co2_new-offset) > co2_->getValue()) {
 				solenoid_valve->write(true);
 				solenoid_state = 1;
-				xTimerStart(controlValveTimerOpen,0);
+				xTimerStart(controlValveTimerOpen, 0);
 				ITM_write("\nvalve open!\n");
 			}
 		}
@@ -313,6 +319,7 @@ void vMQTTTimerCallback( TimerHandle_t xTimer ) {
     	sysMutex.unlock();
     }
 }
+#if 0
 /* callback for valve init */
 void vValveTimerCallBack( TimerHandle_t xTimer ) {
     if( xSemaphoreGive( xSemaphoreValve ) != pdTRUE )
@@ -326,6 +333,8 @@ void vValveTimerCallBack( TimerHandle_t xTimer ) {
     	sysMutex.unlock();
     }
 }
+#endif
+
 /* callback for valve open-close */
 void vValveCloseTimerCallBack( TimerHandle_t xTimer ) {
     solenoid_valve->write(false);
@@ -383,9 +392,10 @@ int main(void) {
 
 	/* setting things up for allowing valve control */
 	xSemaphoreValve = xSemaphoreCreateBinary();
+#if 0
 	controlValveTimer = xTimerCreate("Valve control", valveInterval, pdTRUE, (void *)0, vValveTimerCallBack);
 	xTimerStart(controlValveTimer,0);
-
+#endif
 	controlValveTimerOpen = xTimerCreate("Valve-close control", valveIntervalOpen, pdFALSE, (void *)0, vValveCloseTimerCallBack);
 	/* task MQTT */
 	xTaskCreate( prvMQTTTask,

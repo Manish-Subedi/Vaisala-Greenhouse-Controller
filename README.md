@@ -31,7 +31,7 @@ The LCD (Liquid Crystal Display) screen is an electronic display module and has 
 A rotary encoder is a type of position sensor, they measure rotary movements and displacement and can either be absolute or incremental. The systems uses it to get information on position, speed, count or direction that it is placed on, and adjusting the Co2 levels to the user’s input.
 * __Arduino Uno:__
 Arduino is an open hardware development board that is used to design and build devices that interact with the real world. During the development process, the Arduino Uno has been used to simulate input from the temperature, humidity and CO2 sensors and its purpose is to serve for basic testing of the software. When the product is used with real sensors, the software behaves in the same way as with the simulator and it does not make use of the Arduino Uno.
-* __Wifi Module:__
+* __ESP8266-01 Wifi Module:__
 The ESP8266 WiFi Module is a self contained SOC with integrated TCP/IP protocol stack that can give any microcontroller access to your WiFi network. Therefore, this module brings to the system the possibility to connect to internet, which is a key factor in the data transmission.<br>
 
 The sensors used to collect data in the embedded system are the following:
@@ -43,4 +43,7 @@ The software’s purpose is to be used in a greenhouse environment, as shown bel
 ![Physical Greenhouse](documentation_pictures/physical%20greenhouse%20edited.jpg)
                 
 ## Installation instructions
+Download the zip or clone into the repo. Create a workspace in MCUxpresso IDE and copy all of the projects. Resolve all 'header includes' related warnings and errors, if no errors, debug. You will have the LCD displaying the data, MQTT messages published to the respective topic, and the program adjusts co2 level as per the set point. 
+
 ## How to operate the product?
+After you are done with above installation phase, only thing you need to do is to select 'co2_setpoint' menu item on the LCD and click on it. You will be able to set certain value. The valve that controlls the flow of co2 from the tank will close every 2 seconds. There is a timer that starts everytime the valve opens. The co2 level is checked again and if necessary, the valve opens up again. If the setpoint is lower than the actual reading from the sensor, the valve is kept closed and for test purposes, a fan (manually operated) was used to blow off co2 from the greenhouse. 

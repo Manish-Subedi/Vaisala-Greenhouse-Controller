@@ -34,6 +34,14 @@
 #include "SimpleMenu.h"
 #include "./mqtt_demo/MQTT_custom.h"
 #include "timers.h"
+#include "eeprom.h"
+
+/* EEPROM Address used for storage */
+#define EEPROM_ADDRESS      0x00000100
+/* Write count */
+#define IAP_NUM_BYTES_TO_READ_WRITE 32
+/* Read/write buffer (32-bit aligned) */
+uint32_t buffer[IAP_NUM_BYTES_TO_READ_WRITE / sizeof(uint32_t)];
 
 SimpleMenu menu;
 IntegerEdit *co2_t;

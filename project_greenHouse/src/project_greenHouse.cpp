@@ -34,6 +34,16 @@
 #include "SimpleMenu.h"
 #include "./mqtt_demo/MQTT_custom.h"
 #include "timers.h"
+#include "eeprom.h"
+
+/* EEPROM Address used for storage */
+#define EEPROM_ADDRESS      0x00000100
+/* Write count */
+#define IAP_NUM_BYTES_TO_READ_WRITE 32
+/* Read/write buffer (32-bit aligned) */
+uint32_t buffer[IAP_NUM_BYTES_TO_READ_WRITE / sizeof(uint32_t)];
+#define CHKTAG          "NxP"
+#define CHKTAG_SIZE     3
 
 SimpleMenu menu;
 IntegerEdit *co2_t;
@@ -42,6 +52,10 @@ static void prvHardwareSetup(void) {
 	SystemCoreClockUpdate();
 	Board_Init();
 	Chip_RIT_Init(LPC_RITIMER);
+
+	Chip_Clock_EnablePeriphClock(SYSCTL_CLOCK_EEPROM);
+	Chip_SYSCTL_PeriphReset(RESET_EEPROM);
+
 	Board_LED_Set(0, false);
 	Board_LED_Set(2, true);
 	/* Initialize interrupt hardware */
@@ -219,9 +233,25 @@ static void vTaskLCD(void *pvParams){
 	menu.addItem(new MenuItem(co2_t));
 	menu.addItem(new MenuItem(rh_));
 	menu.addItem(new MenuItem(temp_));
-  
+
+	uint8_t *ptr = (uint8_t *) buffer;
+	uint8_t ret_code;
+	/* read from EEPROM */
+	ret_code = Chip_EEPROM_Read(EEPROM_ADDRESS, ptr, IAP_NUM_BYTES_TO_READ_WRITE);
+	/* Check and display string if it exists */
+	int stSize;
+	/* Is data tagged with check pattern? */
+	if (strncmp((char *)ptr, CHKTAG, CHKTAG_SIZE) == 0) {
+		/* Get next byte, which is the string size in bytes */
+		stSize = (uint32_t) ptr[3];
+		if (stSize > 32) {
+			stSize = 32;
+	}
+	/* Add terminator */
+	ptr[4 + stSize] = '\0';
+
 	co2_->setValue(0);
-	co2_t->setValue(0);
+	co2_t->setValue(atoi((char *) &ptr[4]));
 	rh_->setValue(0);
 	temp_->setValue(0);
 
@@ -241,7 +271,20 @@ static void vTaskLCD(void *pvParams){
 
 		co2_new = co2_t->getValue();
 		/* write to EEPROM */
+<<<<<<< HEAD
+		int index = 0;
+		std::string STRING= std::to_string(co2_new);
+		const char *cstr = STRING.c_str();
+		/* Data to be written to EEPROM */
+		strncpy((char *) ptr, CHKTAG, CHKTAG_SIZE);
+		strcpy((char *) &ptr[4], cstr);
+		index = strlen(cstr);
+		ptr[3] = (uint8_t) index;
 
+		ret_code = Chip_EEPROM_Write(EEPROM_ADDRESS, ptr, IAP_NUM_BYTES_TO_READ_WRITE);
+=======
+
+>>>>>>> b618be4600bb25f2cc1989b8088392cfddd54c97
 
 		int offset = 10;
 		char read[10];

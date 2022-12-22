@@ -271,6 +271,7 @@ static void vTaskLCD(void *pvParams){
 
 		co2_new = co2_t->getValue();
 		/* write to EEPROM */
+<<<<<<< HEAD
 		int index = 0;
 		std::string STRING= std::to_string(co2_new);
 		const char *cstr = STRING.c_str();
@@ -281,6 +282,9 @@ static void vTaskLCD(void *pvParams){
 		ptr[3] = (uint8_t) index;
 
 		ret_code = Chip_EEPROM_Write(EEPROM_ADDRESS, ptr, IAP_NUM_BYTES_TO_READ_WRITE);
+=======
+
+>>>>>>> b618be4600bb25f2cc1989b8088392cfddd54c97
 
 		int offset = 10;
 		char read[10];

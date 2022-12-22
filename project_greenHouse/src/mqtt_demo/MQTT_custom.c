@@ -131,10 +131,10 @@ void prvCreateMQTTConnectionWithBroker( MQTTContext_t * pxMQTTContext,
      * unique, such as a device serial number. */
     xConnectInfo.pClientIdentifier = SECRET_MQTT_CLIENT_ID;
     xConnectInfo.clientIdentifierLength = ( uint16_t ) strlen( SECRET_MQTT_CLIENT_ID );
-    xConnectInfo.pUserName = SECRET_MQTT_USERNAME;
-    xConnectInfo.userNameLength = ( uint16_t ) strlen(xConnectInfo.pUserName);
-    xConnectInfo.pPassword = SECRET_MQTT_PASSWORD;
-    xConnectInfo.passwordLength = ( uint16_t ) strlen(xConnectInfo.pPassword);
+    //xConnectInfo.pUserName = SECRET_MQTT_USERNAME;
+    //xConnectInfo.userNameLength = ( uint16_t ) strlen(xConnectInfo.pUserName);
+    //xConnectInfo.pPassword = SECRET_MQTT_PASSWORD;
+    //xConnectInfo.passwordLength = ( uint16_t ) strlen(xConnectInfo.pPassword);
 
     /* Set MQTT keep-alive period. It is the responsibility of the application to ensure
      * that the interval between Control Packets being sent does not exceed the Keep Alive value.

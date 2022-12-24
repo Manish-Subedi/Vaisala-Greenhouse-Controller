@@ -28,7 +28,7 @@
 #include "ModbusRegister.h"
 #include "DigitalIoPin.h"
 #include "LiquidCrystal.h"
-
+#include "./mqtt_demo/MQTT_custom.h"
 // TODO: insert other definitions and declarations here
 
 /* The following is required if runtime statistics are to be collected
@@ -131,7 +131,7 @@ int main(void) {
 			configMINIMAL_STACK_SIZE * 4, NULL, (tskIDLE_PRIORITY + 1UL),
 			(TaskHandle_t *) NULL);
 
-	vStartSimpleMQTTDemo();
+
 	/* Start the scheduler */
 	vTaskStartScheduler();
 

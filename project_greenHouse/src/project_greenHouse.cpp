@@ -53,8 +53,8 @@ static void prvHardwareSetup(void) {
 	Board_Init();
 	Chip_RIT_Init(LPC_RITIMER);
 
-	Chip_Clock_EnablePeriphClock(SYSCTL_CLOCK_EEPROM);
-	Chip_SYSCTL_PeriphReset(RESET_EEPROM);
+	//Chip_Clock_EnablePeriphClock(SYSCTL_CLOCK_EEPROM);
+	//Chip_SYSCTL_PeriphReset(RESET_EEPROM);
 
 	Board_LED_Set(0, false);
 	Board_LED_Set(2, true);
@@ -233,7 +233,7 @@ static void vTaskLCD(void *pvParams){
 	menu.addItem(new MenuItem(co2_t));
 	menu.addItem(new MenuItem(rh_));
 	menu.addItem(new MenuItem(temp_));
-
+#if 1
 	uint8_t *ptr = (uint8_t *) buffer;
 	uint8_t ret_code;
 	/* read from EEPROM */
@@ -249,9 +249,10 @@ static void vTaskLCD(void *pvParams){
 	}
 	/* Add terminator */
 	ptr[4 + stSize] = '\0';
-
-	co2_->setValue(0);
 	co2_t->setValue(atoi((char *) &ptr[4]));
+#endif
+	co2_->setValue(0);
+
 	rh_->setValue(0);
 	temp_->setValue(0);
 
@@ -270,8 +271,8 @@ static void vTaskLCD(void *pvParams){
 		}
 
 		co2_new = co2_t->getValue();
+#if 0
 		/* write to EEPROM */
-<<<<<<< HEAD
 		int index = 0;
 		std::string STRING= std::to_string(co2_new);
 		const char *cstr = STRING.c_str();
@@ -282,10 +283,7 @@ static void vTaskLCD(void *pvParams){
 		ptr[3] = (uint8_t) index;
 
 		ret_code = Chip_EEPROM_Write(EEPROM_ADDRESS, ptr, IAP_NUM_BYTES_TO_READ_WRITE);
-=======
-
->>>>>>> b618be4600bb25f2cc1989b8088392cfddd54c97
-
+#endif
 		int offset = 10;
 		char read[10];
 		sprintf(read, "\nset_point co2 :%d\n", co2_new);
@@ -410,6 +408,9 @@ int main(void) {
 
  	prvHardwareSetup();
 	heap_monitor_setup();
+
+	Chip_Clock_EnablePeriphClock(SYSCTL_CLOCK_EEPROM);
+	Chip_SYSCTL_PeriphReset(RESET_EEPROM);
 
 	/* Configure pins and ports for Rotary Encoder and valve as input, pullup, and inverted */
 	encoder_A = new DigitalIoPin(0, 5, DigitalIoPin::pullup, true);

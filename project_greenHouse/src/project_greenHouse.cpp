@@ -233,6 +233,7 @@ static void vTaskLCD(void *pvParams){
 	menu.addItem(new MenuItem(co2_t));
 	menu.addItem(new MenuItem(rh_));
 	menu.addItem(new MenuItem(temp_));
+
 #if 1
 	uint8_t *ptr = (uint8_t *) buffer;
 	uint8_t ret_code;
@@ -246,18 +247,35 @@ static void vTaskLCD(void *pvParams){
 		stSize = (uint32_t) ptr[3];
 		if (stSize > 32) {
 			stSize = 32;
+		}
+		/* Add terminator */
+		ptr[4 + stSize] = '\0';
 	}
-	/* Add terminator */
-	ptr[4 + stSize] = '\0';
 	co2_t->setValue(atoi((char *) &ptr[4]));
 #endif
-	co2_->setValue(0);
 
+	co2_->setValue(0);
+	//co2_t->setValue(0);
 	rh_->setValue(0);
 	temp_->setValue(0);
 
 	menu.event(MenuItem::show);
 	dataevent e;
+
+#if 0
+		/* write to EEPROM */
+		int index = 0;
+		int somm = 400;
+		std::string STRING= std::to_string(somm);
+		const char *cstr = STRING.c_str();
+		/* Data to be written to EEPROM */
+		strncpy((char *) ptr, CHKTAG, CHKTAG_SIZE);
+		strcpy((char *) &ptr[4], cstr);
+		index = strlen(cstr);
+		ptr[3] = (uint8_t) index;
+
+		ret_code = Chip_EEPROM_Write(EEPROM_ADDRESS, ptr, IAP_NUM_BYTES_TO_READ_WRITE);
+#endif
 
 	// 1. display values to LCD UI
 	for( ;; ){
@@ -271,41 +289,42 @@ static void vTaskLCD(void *pvParams){
 		}
 
 		co2_new = co2_t->getValue();
-#if 0
-		/* write to EEPROM */
-		int index = 0;
-		std::string STRING= std::to_string(co2_new);
-		const char *cstr = STRING.c_str();
-		/* Data to be written to EEPROM */
-		strncpy((char *) ptr, CHKTAG, CHKTAG_SIZE);
-		strcpy((char *) &ptr[4], cstr);
-		index = strlen(cstr);
-		ptr[3] = (uint8_t) index;
 
-		ret_code = Chip_EEPROM_Write(EEPROM_ADDRESS, ptr, IAP_NUM_BYTES_TO_READ_WRITE);
-#endif
 		int offset = 10;
 		char read[10];
 		sprintf(read, "\nset_point co2 :%d\n", co2_new);
 		ITM_write(read);
 		/* control the valve */
 		//if( xSemaphoreTake( xSemaphoreValve, ( TickType_t ) 0 ) == pdTRUE ) {
-#if 0
-			if((co2_new + offset) < co2_->getValue()) {
-				solenoid_valve->write(false);
-				solenoid_state = 0;
-				ITM_write("\nvalve closed!\n");
-			}
-#endif
+
+		if(co2_new != co2_->getValue() ) {
+
+			/* write to EEPROM */
+			int index = 0;
+			std::string STRING= std::to_string(co2_new);
+			const char *cstr = STRING.c_str();
+			/* Data to be written to EEPROM */
+			strncpy((char *) ptr, CHKTAG, CHKTAG_SIZE);
+			strcpy((char *) &ptr[4], cstr);
+			index = strlen(cstr);
+			ptr[3] = (uint8_t) index;
+
+			ret_code = Chip_EEPROM_Write(EEPROM_ADDRESS, ptr, IAP_NUM_BYTES_TO_READ_WRITE);
+
 			if((co2_new-offset) > co2_->getValue()) {
 				solenoid_valve->write(true);
 				solenoid_state = 1;
 				xTimerStart(controlValveTimerOpen, 0);
 				ITM_write("\nvalve open!\n");
+
 			}
+
+
+
 		}
-		vTaskDelay(500);
+
 	}
+		vTaskDelay(500);
 }
 
 static void vTaskMODBUS(void *pvParams){

@@ -3,7 +3,7 @@
 ### Final project for ARM processors and Embedded Systems operations course.
 Created by Metropolia University of Applied Science students, 3rd year, Smart IoT Systems major. <br> Contributors: Manish Subedi, Ahmed Al-Tuwaijari, Melany Macias, Janne Kinnunen. <br> <br>
 __More detailed documentation about the project architecture can be found in: [LINK](https://docs.google.com/document/d/1tOOWB005brw4m02iWUmryYpSSYYO36w1/edit#heading=h.gjdgxs)__
-
+__Path to main.c :__ project_greenHouse/src/main.cpp
 
 # Contents
 - [Description](#description)
